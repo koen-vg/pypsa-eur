@@ -210,6 +210,86 @@ def add_SAFE_constraints(n, config):
     define_constraints(n, lhs, '>=', rhs, 'Safe', 'mintotalcap')
 
 
+def add_store_resolution_constraints(n, h):
+    """Add constraints to change the time resolution of storage.
+
+    Introduce constraints which essentially make storage in the
+    network n run at a time resolution of h hours. In particular, all
+    decision variables related to storage within h hour intervals are
+    set equal.
+
+    Parameters:
+    n: a PyPSA Network.
+    h: an integer; the new time resolution of storage in hours.
+    """
+
+    logger.info("Adding constraints to change the time resolution of storage.")
+
+    # Define the intervals within which storage decision variables
+    # should be set equal.
+    storage_intervals = pd.interval_range(n.snapshots[0] - pd.Timedelta("1 days"),
+                                          n.snapshots[-1] + pd.Timedelta("1 days"),
+                                          freq=f'{h}H',
+                                          closed='left')
+    #TODO: in the configuration, there is an option about closed-ness
+    # of intervals. Should we consider it?
+
+    # Collect the snapshots into bins corresponding to the storage intervals.
+    bins = {i: [] for i in storage_intervals}
+    interval_iter = iter(storage_intervals)
+    current_interval = next(interval_iter)
+    for s in n.snapshots:
+        if s not in current_interval:
+            current_interval = next(interval_iter)
+        bins[current_interval].append(s)
+
+    # Now for each component within each bin, set all decision variables equal.
+    for snapshots in bins.values():
+        aggregate_storage(n, snapshots)
+
+
+def aggregate_storage(n, snapshots):
+    """
+    Aggregate store decision variables over time.
+
+    Over the period given by 'snapshots', the charging and discharging
+    variables are each aggregated for every storage component in
+    n. This works only for storage components made up of a 'Store'
+    connected to the rest of the network by two 'Links' (one for
+    charging, one for discharging). For each such link in the network,
+    we aggregate the power variables 'p'. Specifically, we add
+        p_{i+1} - p_{i} = 0
+    as a constraint for all i in snapshots.
+
+    Parameters
+    ----------
+    n: a PyPSA Network.
+    snapshots: a subset of n.snapshots.
+
+    """
+    # Links (dis)charging storage have the following carriers:
+    store_link_carriers = ['H2 electrolysis',
+                           'H2 fuel cell',
+                           'battery charger',
+                           'battery discharger']
+    # Get the index of all storage (dis)charging links
+    store_link_i = n.links.loc[n.links['carrier'].isin(store_link_carriers)].index
+    # Get the power time series variables for the above links. 'p' is
+    # a Dataframe indexed over snapshots, with the relevant links as
+    # columns.
+    p = get_var(n, 'Link', 'p').loc[snapshots, store_link_i]
+    # Create a table of 1-term linear expressions of all except the
+    # first row of 'p'.
+    lhs, *axes = linexpr((1, p.loc[snapshots[1:]]), return_axes=True)
+    # Subtract from each entry in 'lhs' the variable "above" (one
+    # snapshot before) it. This is achieved by 'shift()'ing the values
+    # in the dataframe 'p'.
+    lhs += linexpr((-1, p.shift().loc[snapshots[1:]]))\
+        .reindex(index=axes[0], columns=axes[1]).values
+    # Now we can define the constraint.
+    define_constraints(n, lhs, "=", 0, 'Link', 'aggregation')
+
+
 def add_battery_constraints(n):
     nodes = n.buses.index[n.buses.carrier == "battery"]
     if nodes.empty or ('Link', 'p_nom') not in n.variables.index:
@@ -238,6 +318,12 @@ def extra_functionality(n, snapshots):
     for o in opts:
         if "EQ" in o:
             add_EQ_constraints(n, o)
+    for o in opts:
+        m = re.match(r'^\d+hstore$', o, re.IGNORECASE)
+        if m is not None:
+            h = int(m.group(0)[:-6])
+            add_store_resolution_constraints(n, h)
+            break
     add_battery_constraints(n)
 
 
