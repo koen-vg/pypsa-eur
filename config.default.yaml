@@ -15,7 +15,7 @@ scenario:
   simpl: ['']
   ll: ['copt']
   clusters: [37, 128, 256, 512, 1024]
-  opts: [Co2L-3H]
+  opts: [Co2L-3H-6HSUB]
 
 countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK']
 
@@ -58,6 +58,28 @@ electricity:
   #   # Wind is the Fueltype in ppm.data.Capacity_stats, onwind, offwind-{ac,dc} the carrier in PyPSA-Eur
   #   Wind: [onwind, offwind-ac, offwind-dc]
   #   Solar: [solar]
+
+time_aggregation:
+  # The operation of technologies with this carrier is modelled at a
+  # time resolution given by the 'nHSUB' wildcard.
+  aggregate_uniform: [H2 electrolysis, H2 fuel cell]
+
+  # The operation of technologies with this carrier is set to constant
+  # during each day.
+  aggregate_day: [battery discharger]
+
+  # The operation of technologies with this carrier is set to constant
+  # during each night.
+  aggregate_night: [battery charger]
+
+  time_boundaries:
+    # Defines the start and end of a day and night for the purpose of
+    # the above options. Given in a "hh:mm:ss" format.
+    day_start: "10:00:00"
+    day_end: "15:00:00"
+    night_start: "18:00:00"
+    night_end: "06:00:00"
+    
 
 atlite:
   nprocesses: 4
