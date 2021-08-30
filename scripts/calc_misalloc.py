@@ -52,6 +52,7 @@ from _helpers import configure_logging
 import pypsa
 from pypsa.linopf import (get_var, define_constraints, linexpr,
                           network_lopf, ilopf)
+import solve_network
 
 import pandas as pd
 
@@ -62,7 +63,7 @@ from vresutils.benchmark import memory_logger
 logger = logging.getLogger(__name__)
 
 
-def add_misalloc_bounds(n, snapshots):
+def add_misalloc_bounds(n):
     """Add lower bounds on capacities to calculate misallocation metric.
 
     The given network `n` is assumed to have the second (solved)
@@ -110,6 +111,12 @@ def add_misalloc_bounds(n, snapshots):
     add_misalloc_bound_comp('Link', m.links, 'p_nom')
 
 
+def misalloc_extra_functionality(n, snapshots):
+    """Apply misallocation bounds and other functionality."""
+    solve_network.extra_functionality(n, snapshots)
+    add_misalloc_bounds(n)
+
+
 def misalloc_solve_network(n, config, opts='', **kwargs):
     """Taken from the `solve_network` module with slight modifications.
 
@@ -129,13 +136,13 @@ def misalloc_solve_network(n, config, opts='', **kwargs):
 
     if cf_solving.get('skip_iterations', False):
         network_lopf(n, solver_name=solver_name, solver_options=solver_options,
-                     extra_functionality=add_misalloc_bounds, **kwargs)
+                     extra_functionality=misalloc_extra_functionality, **kwargs)
     else:
         ilopf(n, solver_name=solver_name, solver_options=solver_options,
               track_iterations=track_iterations,
               min_iterations=min_iterations,
               max_iterations=max_iterations,
-              extra_functionality=add_misalloc_bounds, **kwargs)
+              extra_functionality=misalloc_extra_functionality, **kwargs)
     return n
 
 
@@ -156,54 +163,40 @@ if __name__ == "__main__":
 
     fn = getattr(snakemake.log, 'memory', None)
     with memory_logger(filename=fn, interval=30.) as mem:
-
-        # Check that we received exactly two networks as input to
-        # compare.
-        if len(snakemake.input) != 2:
-            raise ValueError("calc_misalloc didn't get exactly two networks to "
-                             "compare.")
-
         # Load the two networks.
-        ns = [pypsa.Network(fn) for fn in snakemake.input]
+        ns = [pypsa.Network(snakemake.input.networkA),
+              pypsa.Network(snakemake.input.networkB)]
+        solved_ns = [pypsa.Network(snakemake.input.solved_networkA),
+                     pypsa.Network(snakemake.input.solved_networkB)]
 
         # First extract the objection function value from the input networks.
-        obj_vals = [n.objective for n in ns]
+        obj_vals = [n.objective for n in solved_ns]
 
-        # To each network, attach the other network so we can use it's
-        # optimal capacities as new lower bounds.
-        ns[0].nom_min_network = ns[1]
-        ns[1].nom_min_network = ns[0]
-
-        # Define (and create if necessary) a directory to save the
-        # auxiliary networks created in the subsequent computations.
-        misalloc_network_dir = Path(snakemake.input[0]).parent.parent \
-            / 'networks' / 'misalloc'
-        if not misalloc_network_dir.exists():
-            misalloc_network_dir.mkdir(parents=True)
+        # To each network, attach the solved version of the other
+        # network so we can use it's optimal capacities as new lower
+        # bounds.
+        ns[0].nom_min_network = solved_ns[1]
+        ns[1].nom_min_network = solved_ns[0]
 
         # Now solve each network again, but this time add lower bounds
-        # on capacities. Note that since these networks have already
-        # be solved previously, we don't need to prepare them as in
-        # the `solve_network` rule. We also don't need to pass the
-        # `solve_network.extra_functionality` function, since it has
-        # likewise already been applied.
-        #
-        # In `misalloc_solve_network`, we use the
+        # on capacities. In `misalloc_solve_network`, we use the
         # `extra_functionality` function to add the lower bounds.
         for i in range(2):
             ns[i] = misalloc_solve_network(
                 ns[i], config=snakemake.config,
                 solver_dir=tmpdir,
                 solver_logfile=snakemake.log.solver)
-            # ns[i].export_to_netcdf(
-            #     str(misalloc_network_dir / (snakemake.output[0]
-            #         + '__' + os.path.basename(snakemake.input[i]))))
+        ns[0].export_to_netcdf(snakemake.output.misallocated_networkA)
+        ns[1].export_to_netcdf(snakemake.output.misallocated_networkB)
 
         # Finally calculate the misallocation metric using the new
         # objection values.
         new_obj_vals = [n.objective for n in ns]
         M = new_obj_vals[0] - obj_vals[0] + new_obj_vals[1] - obj_vals[1]
-        with open(snakemake.output[0], 'w') as f:
+        logger.info(f"Obj of original networks: {obj_vals[0]} and {obj_vals[1]}")
+        logger.info(f"Obj of bounded networks: {new_obj_vals[0]} and {new_obj_vals[1]}")
+        logger.info(f"Differences: {new_obj_vals[0] - obj_vals[0]} and {new_obj_vals[1] - obj_vals[1]}")
+        with open(snakemake.output.metric, 'w') as f:
             f.write(f"{M}")
 
     logger.info("Maximum memory usage: {}".format(mem.mem_usage))

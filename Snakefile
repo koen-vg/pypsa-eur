@@ -447,9 +447,15 @@ def memory_misalloc(w):
     
 
 rule calc_misalloc:
-    input: ["results/networks/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}.nc", \
-            "results/networks/elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}.nc"]
-    output: "results/misalloc/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}__elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}"
+    input:
+        networkA="networks/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}.nc",
+        networkB="networks/elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}.nc",
+        solved_networkA="results/networks/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}.nc",
+        solved_networkB="results/networks/elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}.nc"
+    output:
+        metric="results/misalloc/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}__elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}",
+        misallocated_networkA="networks/misalloc/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}__lowerbound__elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}.nc",
+        misallocated_networkB="networks/misalloc/elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}__lowerbound__elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}.nc",
     wildcard_constraints:
         simplA="[a-zA-Z0-9]*|all",
         clustersA="[0-9]+m?|all",
