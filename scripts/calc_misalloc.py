@@ -53,10 +53,11 @@ import pypsa
 from pypsa.linopf import (get_var, define_constraints, linexpr,
                           network_lopf, ilopf)
 
-from pathlib import Path
-from vresutils.benchmark import memory_logger
+import pandas as pd
 
-import solve_network
+from pathlib import Path
+import os
+from vresutils.benchmark import memory_logger
 
 logger = logging.getLogger(__name__)
 
@@ -72,35 +73,40 @@ def add_misalloc_bounds(n, snapshots):
     `n.nom_min_network`.
 
     For example, for a generator `g` we add a constraint of the form
-        n.g.p_nom_min = n.nom_min_network.g.p_nom_opt.
+        n.g.p_nom => n.nom_min_network.g.p_nom_opt.
     """
     m = n.nom_min_network
 
     # A helper function to factor out the common code required for the
     # different types of components.
-    def add_misalloc_bound_comp(type: str, var: str) -> None:
+    def add_misalloc_bound_comp(comp: str,
+                                m_comp_df: pd.DataFrame,
+                                var: str) -> None:
         """Add misallocation bounds for one kind of component.
 
-        The `type` can be one of 'Generator', 'Store', 'StorageUnit',
+        The `comp` can be one of 'Generator', 'Store', 'StorageUnit',
         'Line' or 'Link', and the `var` must be a corresponding
-        variable such as 'p_nom' or 'e_nom'. The strings `'_min'` and
-        `'_opt'` are appended to `var`; the results must be variables
-        of the given components.
+        variable such as 'p_nom' or 'e_nom'. (See `n.variables` for
+        possible choices.)
+
+        `m_comp_df` should be the DataFrame of m with the data
+        corresponding to `comp`. For example, when `comp` is
+        'Generator', then `m_comp_df` should be `m.generators`.
 
         """
-        n_comps = get_var(n, type, var + '_min')
-        m_comps = get_var(m, type, var + '_opt')
-        lhs = linexpr((1, n_comps), (-1, m_comps))
-        define_constraints(n, lhs, '>=', 0, type, 'misallocation_bound')
+        comp_vars = get_var(n, comp, var)
+        comp_min = m_comp_df.loc[comp_vars.index, var + '_opt']
+        lhs = linexpr((1, comp_vars), (-1, comp_min))
+        define_constraints(n, lhs, '>=', 0, comp, 'misallocation_bound')
 
     # Define misallocation bounds for generators, stores, lines and
     # links.
     logger.info("Adding lower bounds for misallocation metric.")
-    add_misalloc_bound_comp('Generator', 'p_nom')
-    add_misalloc_bound_comp('Store', 'e_nom')
-    add_misalloc_bound_comp('StorageUnit', 'p_nom')
-    add_misalloc_bound_comp('Line', 's_nom')
-    add_misalloc_bound_comp('Link', 'p_nom')
+    add_misalloc_bound_comp('Generator', m.generators, 'p_nom')
+    add_misalloc_bound_comp('Store', m.stores, 'e_nom')
+    add_misalloc_bound_comp('StorageUnit', m.storage_units, 'p_nom')
+    add_misalloc_bound_comp('Line', m.lines, 's_nom')
+    add_misalloc_bound_comp('Link', m.links, 'p_nom')
 
 
 def misalloc_solve_network(n, config, opts='', **kwargs):
@@ -167,6 +173,13 @@ if __name__ == "__main__":
         ns[0].nom_min_network = ns[1]
         ns[1].nom_min_network = ns[0]
 
+        # Define (and create if necessary) a directory to save the
+        # auxiliary networks created in the subsequent computations.
+        misalloc_network_dir = Path(snakemake.input[0]).parent.parent \
+            / 'networks' / 'misalloc'
+        if not misalloc_network_dir.exists():
+            misalloc_network_dir.mkdir(parents=True)
+
         # Now solve each network again, but this time add lower bounds
         # on capacities. Note that since these networks have already
         # be solved previously, we don't need to prepare them as in
@@ -174,13 +187,16 @@ if __name__ == "__main__":
         # `solve_network.extra_functionality` function, since it has
         # likewise already been applied.
         #
-        # We use the `extra_functionality` function to add the lower
-        # bounds.
+        # In `misalloc_solve_network`, we use the
+        # `extra_functionality` function to add the lower bounds.
         for i in range(2):
-            ns[i] = solve_network.solve_network(
-                ns[i], config=snakemake.config, # opts=opts,
+            ns[i] = misalloc_solve_network(
+                ns[i], config=snakemake.config,
                 solver_dir=tmpdir,
                 solver_logfile=snakemake.log.solver)
+            ns[i].export_to_netcdf(
+                str(misalloc_network_dir / (snakemake.output[0]
+                    + '__' + os.path.basename(snakemake.input[i]))))
 
         # Finally calculate the misallocation metric using the new
         # objection values.
