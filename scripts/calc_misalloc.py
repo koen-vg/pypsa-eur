@@ -101,10 +101,11 @@ def add_misalloc_bounds(n, snapshots):
 
     # Define misallocation bounds for generators, stores, lines and
     # links.
+    # TODO: find a way of getting just the extendable components.
     logger.info("Adding lower bounds for misallocation metric.")
     add_misalloc_bound_comp('Generator', m.generators, 'p_nom')
     add_misalloc_bound_comp('Store', m.stores, 'e_nom')
-    add_misalloc_bound_comp('StorageUnit', m.storage_units, 'p_nom')
+    # add_misalloc_bound_comp('StorageUnit', m.storage_units, 'p_nom')
     add_misalloc_bound_comp('Line', m.lines, 's_nom')
     add_misalloc_bound_comp('Link', m.links, 'p_nom')
 
@@ -194,9 +195,9 @@ if __name__ == "__main__":
                 ns[i], config=snakemake.config,
                 solver_dir=tmpdir,
                 solver_logfile=snakemake.log.solver)
-            ns[i].export_to_netcdf(
-                str(misalloc_network_dir / (snakemake.output[0]
-                    + '__' + os.path.basename(snakemake.input[i]))))
+            # ns[i].export_to_netcdf(
+            #     str(misalloc_network_dir / (snakemake.output[0]
+            #         + '__' + os.path.basename(snakemake.input[i]))))
 
         # Finally calculate the misallocation metric using the new
         # objection values.
