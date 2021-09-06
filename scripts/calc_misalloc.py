@@ -97,8 +97,8 @@ def add_misalloc_bounds(n):
         """
         comp_vars = get_var(n, comp, var)
         comp_min = m_comp_df.loc[comp_vars.index, var + '_opt']
-        lhs = linexpr((1, comp_vars), (-1, comp_min))
-        define_constraints(n, lhs, '>=', 0, comp, 'misallocation_bound')
+        define_constraints(n, linexpr((1, comp_vars)), '>=', comp_min,
+                           comp, 'misallocation_bound')
 
     # Define misallocation bounds for generators, stores, lines and
     # links.
@@ -158,8 +158,9 @@ if __name__ == "__main__":
     tmpdir = snakemake.config['solving'].get('tmpdir')
     if tmpdir is not None:
         Path(tmpdir).mkdir(parents=True, exist_ok=True)
-    # opts = snakemake.wildcards.opts.split('-')
-    # solve_opts = snakemake.config['solving']['options']
+    opts = [snakemake.wildcards.optsA.split('-'),
+            snakemake.wildcards.optsB.split('-')]
+    solve_opts = snakemake.config['solving']['options']
 
     fn = getattr(snakemake.log, 'memory', None)
     with memory_logger(filename=fn, interval=30.) as mem:
@@ -168,6 +169,8 @@ if __name__ == "__main__":
               pypsa.Network(snakemake.input.networkB)]
         solved_ns = [pypsa.Network(snakemake.input.solved_networkA),
                      pypsa.Network(snakemake.input.solved_networkB)]
+
+        ns = [solve_network.prepare_network(n, solve_opts) for n in ns]
 
         # First extract the objection function value from the input networks.
         obj_vals = [n.objective for n in solved_ns]
@@ -183,7 +186,7 @@ if __name__ == "__main__":
         # `extra_functionality` function to add the lower bounds.
         for i in range(2):
             ns[i] = misalloc_solve_network(
-                ns[i], config=snakemake.config,
+                ns[i], config=snakemake.config, opts=opts[i],
                 solver_dir=tmpdir,
                 solver_logfile=snakemake.log.solver)
         ns[0].export_to_netcdf(snakemake.output.misallocated_networkA)
