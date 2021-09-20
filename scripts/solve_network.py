@@ -293,11 +293,11 @@ def uniform_snapshot_bins(n, h):
     interval_iter = iter(intervals)
     current_interval = next(interval_iter)
     for s in n.snapshots:
-        if s not in current_interval:
+        while s not in current_interval:
             current_interval = next(interval_iter)
         bins[current_interval].append(s)
 
-    return bins.values()
+    return [i for i in bins.values() if i]
 
 
 def night_snapshot_bins(n, night_start='18:00:00', night_end='06:00:00'):
