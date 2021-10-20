@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-name: pypsa-eur
+name: flex-time-agg-pypsa-eur
 channels:
   - conda-forge
   - bioconda
@@ -12,7 +12,6 @@ dependencies:
   - pip
   - mamba # esp for windows build
 
-  - pypsa>=0.18
   - atlite>=0.2.5
   - dask<=2021.3.1 # until https://github.com/dask/dask/issues/7583 is solved
 
@@ -39,6 +38,7 @@ dependencies:
   - pyomo
   - matplotlib
   - proj<8
+  - gurobi
 
   # Keep in conda environment when calling ipython
   - ipython
@@ -56,5 +56,6 @@ dependencies:
   - tabula-py
 
   - pip:
+    - git+https://github.com/koen-vg/pypsa.git@allow-lp-modification#egg=pypsa
     - vresutils==0.3.1
     - tsam>=1.1.0
