@@ -22,7 +22,7 @@ misallocation:
     simpl: ['']
     ll: ['c1.25']
     clusters: [100]
-    opts: [Co2L-1H, Co2L-1H-2HSUB, Co2L-1H-4HSUB, Co2L-1H-8HSUB, Co2L-1H-12HSUB, Co2L-1H-24HSUB, Co2L-2H, Co2L-2H-4HSUB, Co2L-2H-8HSUB, Co2L-2H-12HSUB, Co2L-2H-24HSUB, Co2L-4H, Co2L-4H-8HSUB, Co2L-4H-12HSUB, Co2L-4H-24HSUB, Co2L-8H, Co2L-8H-24HSUB, Co2L-24H]
+    opts: [Co2L-1H]
   scenario_b:
     simpl: ['']
     ll: ['c1.25']
