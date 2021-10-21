@@ -392,3 +392,84 @@ rule plot_p_nom_max:
     log: "logs/plot_p_nom_max/elec_s{simpl}_{clusts}_{techs}_{country}_{ext}.log"
     script: "scripts/plot_p_nom_max.py"
 
+
+if 'misallocation' in config:
+    # Extract the misallocation scenarios from the configuration.
+    misalloc_scenarios = config['misallocation']
+    if len(misalloc_scenarios) != 2:
+        raise ValueError("Misallocation metric calculation: two sets of "
+                         "scenarios must be given to compare.")
+    names = [
+        expand("results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
+               **scenario) for scenario in misalloc_scenarios.values()]
+    # Each scenario given in the configuration can contain a number of
+    # model specifications, here collected in the `names_x` lists. We
+    # compute the misallocation between between all possible pairs of
+    # models from `names_a` and `names_b`.
+    names_a = names[0]
+    names_b = names[1]
+    misalloc_pairs = [(na, nb) for na in names_a for nb in names_b]
+    # Filter out repeated pairs (the misallocation metric is
+    # symmetric) and pairs of the same model (the misallocation metric
+    # is zero between identical models).
+    misalloc_pairs = [tuple(sorted(list(pair))) for pair in misalloc_pairs]
+    misalloc_pairs = list(set(misalloc_pairs))
+    misalloc_pairs = [(na, nb) for (na, nb) in misalloc_pairs if na != nb]
+    # Only keep pairs with the same number of clusters in each model.
+    def clusters(s):
+        # Match a large enough part of the model name to extract the
+        # number of clusters.
+        m = re.match(r'.*elec_s([a-zA-Z0-9]*)_([0-9]+m?).*', s, re.IGNORECASE)
+        return m.group(2)
+    misalloc_pairs = [(na, nb) for (na, nb) in misalloc_pairs
+                      if clusters(na) == clusters(nb)]
+    # Convert the pairs into strings representing the snakemake target
+    # files to which the metrics are to be written.
+    misalloc_outputs = ["results/misalloc/" + \
+                        os.path.basename(na)[:-3] + \
+                        "__" + \
+                        os.path.basename(nb)[:-3]
+                        for (na, nb) in misalloc_pairs]
+
+
+rule calc_all_misalloc:
+    input: misalloc_outputs
+
+         
+def memory_misalloc(w):
+    wa = snakemake.io.Wildcards()
+    wb = snakemake.io.Wildcards()
+    wa.clusters = w.clustersA
+    wa.opts = w.optsA
+    wb.clusters = w.clustersB
+    wb.opts = w.optsB
+    return max(memory(wa), memory(wb))
+    
+
+rule calc_misalloc:
+    input:
+        networkA="networks/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}.nc",
+        networkB="networks/elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}.nc",
+        solved_networkA="results/networks/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}.nc",
+        solved_networkB="results/networks/elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}.nc"
+    output:
+        metric="results/misalloc/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}__elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}",
+        misallocated_networkA="networks/misalloc/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}__lowerbound__elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}.nc",
+        misallocated_networkB="networks/misalloc/elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}__lowerbound__elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}.nc",
+    wildcard_constraints:
+        simplA="[a-zA-Z0-9]*|all",
+        clustersA="[0-9]+m?|all",
+        llA="(v|c)([0-9\.]+|opt|all)|all",
+        optsA="[-+a-zA-Z0-9\.]*",
+        simplB="[a-zA-Z0-9]*|all",
+        clustersB="[0-9]+m?|all",
+        llB="(v|c)([0-9\.]+|opt|all)|all",
+        optsB="[-+a-zA-Z0-9\.]*"
+    log:
+        solver="logs/calc_misalloc/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}__elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}__solver.log",
+        python="logs/calc_misalloc/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}__elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}__python.log",
+        memory="logs/calc_misalloc/elec_s{simplA}_{clustersA}_ec_l{llA}_{optsA}__elec_s{simplB}_{clustersB}_ec_l{llB}_{optsB}__memory.log"
+    threads: 4
+    resources: mem=memory_misalloc
+    shadow: "shallow"
+    script: "scripts/calc_misalloc.py"
