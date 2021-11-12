@@ -73,10 +73,17 @@ electricity:
   #   Solar: [solar]
 
 time_aggregation:
-  # The operation of technologies with this carrier is modelled at a
-  # time resolution given by the 'nHSUB' wildcard.
-  aggregate_uniform: [H2 electrolysis, H2 fuel cell]
+  # Links with these carriers are aggregated uniformly to the
+  # resolution given by the "HSUB" wildcard.
+  links:
+    carriers:
+      - H2 electrolysis
+      - H2 fuel cell
 
+  # Which implementation to us for aggregation, can be 'con' for
+  # constraints or 'sub' for substitution.
+  strategy: 'con'
+      
   # The operation of technologies with this carrier is set to constant
   # during each day.
   # aggregate_day: [battery discharger]

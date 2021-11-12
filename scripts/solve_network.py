@@ -86,6 +86,7 @@ import re
 import pypsa
 from pypsa.linopf import (get_var, define_constraints, linexpr, join_exprs,
                           network_lopf, ilopf)
+import aggregation
 
 from pathlib import Path
 from vresutils.benchmark import memory_logger
@@ -211,12 +212,11 @@ def add_SAFE_constraints(n, config):
     define_constraints(n, lhs, '>=', rhs, 'Safe', 'mintotalcap')
 
 
-def add_time_agg_constraints(n, h, time_agg_config):
-    """
-    Add constraints to reduce the time resolution of some technologies to `h`
-    hours (corresponding to the `nHSUB` wildcard).
+def aggregate_components(n, h, time_agg_config):
+    """Aggregate some the operation of some components to lower time resolution.
 
-    The impacted technologies are given in the `time_agg_config` dictionary.
+    Links with carriers given in the `time_agg_config` are aggregated
+    to a resolution given by the `HSUB` wildcard.
 
     Parameters
     ----------
@@ -226,206 +226,24 @@ def add_time_agg_constraints(n, h, time_agg_config):
     time_agg_config : dict
         A configuration dictionary giving the technologies whose operations to
         aggregate.
+
     """
+    # Links for these carriers are aggregated.
+    carriers = time_agg_config['links']['carriers']
 
-    techs = time_agg_config['aggregate_uniform']
-
-    logger.info(f"Adding constraints to reduce time resolution of {techs} to\
+    logger.info(f"Adding constraints to reduce time resolution of {carriers} to\
                 {h} hours.")
 
-    h_hour_bins = uniform_snapshot_bins(n, h)
-    aggregate_links_p(n, h_hour_bins, techs)
+    h_hour_bins = aggregation.uniform_snapshot_bins(n, h)
 
-
-def add_day_night_constraints(n, time_agg_config):
-    """
-    Add constraints to aggregate the operations of certain
-    technologies during the day and night, as specified in the
-    `time_aggregation` section of the config file.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    time_agg_config : dict
-    """
-    times = time_agg_config['time_boundaries']
-
-    # Aggregate day time operations.
-    day_techs = time_agg_config['aggregate_day']
-    if day_techs:
-        start, end = times['day_start'], times['day_end']
-        day_bins = day_snapshot_bins(n, start, end)
-        aggregate_links_p(n, day_bins, day_techs)
-
-    # Aggregate night time operations.
-    night_techs = time_agg_config['aggregate_night']
-    if night_techs:
-        start, end = times['night_start'], times['night_end']
-        night_bins = night_snapshot_bins(n, start, end)
-        aggregate_links_p(n, night_bins, night_techs)
-
-
-def uniform_snapshot_bins(n, h):
-    """Create uniformly sized intervals of snapshots of a network.
-    
-    Divide all snapshots of `n` into `h`-hour intervals, and return an
-    iterable over those intervals.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    h : int
-
-    Returns
-    -------
-    iterable of pd.Series
-        An iterable of subsets of `n.snapshots`.
-    """
-    intervals = pd.interval_range(n.snapshots[0] - pd.Timedelta("1 days"),
-                                  n.snapshots[-1] + pd.Timedelta("1 days"),
-                                  freq=f'{h}H',
-                                  closed='left')
-    # TODO: in the configuration, there is an option about closed-ness
-    # of intervals. Should we consider it?
-
-    # Collect the snapshots into bins corresponding to the storage intervals.
-    bins = {i: [] for i in intervals}
-    interval_iter = iter(intervals)
-    current_interval = next(interval_iter)
-    for s in n.snapshots:
-        while s not in current_interval:
-            current_interval = next(interval_iter)
-        bins[current_interval].append(s)
-
-    return [i for i in bins.values() if i]
-
-
-def night_snapshot_bins(n, night_start='18:00:00', night_end='06:00:00'):
-    """
-    Creates an interval for each night (from `night_start` to `night_end`), and
-    returns a dictionary mapping each such interval to the snapshots of `n`
-    contained in it.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    night_start : str
-        The time of day in hh:mm:ss format at which to start night intervals.
-    night_end : str
-        The time of day in hh:mm:ss format at which to end night intervals.
-    """
-    days = pd.date_range(start=n.snapshots[0].round('D'),
-                         end=n.snapshots[-1].round('D'),
-                         freq='D')
-
-    def night_inter(day):
-        return pd.Interval(left=day + pd.Timedelta(night_start)
-                                - pd.Timedelta('1D'),
-                           right=day + pd.Timedelta(night_end),
-                           closed='both')
-    night_intervals = pd.IntervalIndex(list(map(night_inter, days)))
-
-    # Collect the snapshots into bins corresponding to the intervals.
-    bins = {i: [] for i in night_intervals}
-    for s in n.snapshots:
-        # Is s during the night?
-        if night_intervals.contains(s).max():
-            # In which night is s?
-            night_i = night_intervals.get_loc(s)
-            # Add s to the right bin
-            bins[night_intervals.values[night_i]].append(s)
-
-    return bins.values()
-
-
-def day_snapshot_bins(n, day_start='10:00:00', day_end='15:00:00'):
-    """
-    Create an interval for each day (between `day_start` and
-    `day_end`), and returns a dictionary mapping each such interval to
-    the snapshots of `n` contained in it.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    day_start : str
-        The time of day in hh:mm:ss format at which to start day intervals.
-    day_end : str
-        The time of day in hh:mm:ss format at which to end day intervals.
-    """
-    days = pd.date_range(start=n.snapshots[0].round('D'),
-                         end=n.snapshots[-1].round('D'),
-                         freq='D')
-
-    def day_inter(day):
-        return pd.Interval(left=day + pd.Timedelta(day_start),
-                           right=day + pd.Timedelta(day_end),
-                           closed='both')
-    day_intervals = pd.IntervalIndex(list(map(day_inter, days)))
-
-    # Collect the snapshots into bins corresponding to the intervals.
-    bins = {i: [] for i in day_intervals}
-    for s in n.snapshots:
-        # Is s during the day?
-        if day_intervals.contains(s).max():
-            # In which day is s?
-            day_i = day_intervals.get_loc(s)
-            # Add s to the right bin
-            bins[day_intervals.values[day_i]].append(s)
-
-    return bins.values()
-
-
-def aggregate_links_p(n, snapshot_collection, carriers):
-    """Aggregate operations of links in a PyPSA network.
-
-    For each link in `n` with carrier in `carriers`, aggregate the
-    power p along the link over the given `snapshot_collection`. In
-    particular, `snapshot_collection` is a list of subsets of
-    `n.snapshots`, and p is aggregated over each subset in
-    `snapshot_collection` individually.
-    
-    Specifically, we add
-        p_{i+1} - p_{i} = 0
-    as a constraint for all i in each subsets of `snapshots`.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    snapshot_collection : List[pd.Series]
-        a list of subsets of `n.snapshots`.
-    carrier : iterable
-        a subset of `n.carriers`.
-
-    """
-    # Get the index of all links with the given carrier.
-    store_link_i = n.links.loc[n.links['carrier'].isin(carriers)].index
-
-    # Add a constraint for each set of snapshots in snapshot_collection
-    for snapshots in snapshot_collection:
-        # Get the power time series variables for the above links. 'p' is
-        # a Dataframe indexed over snapshots, with the relevant links as
-        # columns.
-        p = get_var(n, 'Link', 'p').loc[snapshots, store_link_i]
-        # Create a table of 1-term linear expressions of all except the
-        # first row of 'p'.
-        lhs, *axes = linexpr((1, p.loc[snapshots[1:]]), return_axes=True)
-        # Subtract from each entry in 'lhs' the variable "above" (one
-        # snapshot before) it. This is achieved by 'shift()'ing the values
-        # in the dataframe 'p'.
-        lhs += linexpr((-1, p.shift().loc[snapshots[1:]]))\
-            .reindex(index=axes[0], columns=axes[1]).values
-        define_constraints(n, lhs, "=", 0, 'Link', 'aggregation')
-
-
-def add_battery_constraints(n):
-    nodes = n.buses.index[n.buses.carrier == "battery"]
-    if nodes.empty or ('Link', 'p_nom') not in n.variables.index:
+    if not h_hour_bins:
+        logger.warning("There is nothing to aggregrate.")
         return
-    link_p_nom = get_var(n, "Link", "p_nom")
-    lhs = linexpr((1,link_p_nom[nodes + " charger"]),
-                  (-n.links.loc[nodes + " discharger", "efficiency"].values,
-                   link_p_nom[nodes + " discharger"].values))
-    define_constraints(n, lhs, "=", 0, 'Link', 'charger_ratio')
+
+    aggregation.aggregate_links_p(n,
+                                  h_hour_bins,
+                                  carriers,
+                                  time_agg_config['strategy'])
 
 
 def extra_functionality(n, snapshots):
@@ -446,13 +264,13 @@ def extra_functionality(n, snapshots):
         if "EQ" in o:
             add_EQ_constraints(n, o)
     for o in opts:
-        m = re.match(r'^(\d)+hsub$', o, re.IGNORECASE)
+        m = re.match(r'^(\d+)hsub$', o, re.IGNORECASE)
         if m is not None:
             h = int(m.group(1))
-            add_time_agg_constraints(n, h, config['time_aggregation'])
+            aggregate_components(n, h, config['time_aggregation'])
             break
-    add_battery_constraints(n)
-    add_day_night_constraints(n, config['time_aggregation'])
+    # add_battery_constraints(n)
+    # add_day_night_constraints(n, config['time_aggregation'])
 
 
 def solve_network(n, config, opts='', **kwargs):
