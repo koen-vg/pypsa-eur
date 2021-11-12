@@ -324,6 +324,12 @@ rule solve_network:
     script: "scripts/solve_network.py"
 
 
+rule presolve_network:
+    input: network="networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+    output: stats="results/presolve/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_numNZs_stats.csv"
+    script: "scripts/presolve_network.py"
+
+
 rule solve_operations_network:
     input:
         unprepared="networks/elec_s{simpl}_{clusters}_ec.nc",
