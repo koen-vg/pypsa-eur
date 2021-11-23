@@ -156,11 +156,12 @@ if config['enable'].get('build_cutout', False):
         script: "scripts/build_cutout.py"
 
 
-if config['enable'].get('retrieve_cutout', True):
-    rule retrieve_cutout:
-        input: HTTP.remote("zenodo.org/record/6382570/files/{cutout}.nc", keep_local=True, static=True)
-        output: "cutouts/{cutout}.nc"
-        run: move(input[0], output[0])
+# We are not retrieving cutouts like this.
+# if config['enable'].get('retrieve_cutout', True):
+#     rule retrieve_cutout:
+#         input: HTTP.remote("zenodo.org/record/6382570/files/{cutout}.nc", keep_local=True, static=True)
+#         output: "cutouts/{cutout}.nc"
+#         shell: "mv {input} {output}"
 
 
 if config['enable'].get('build_natura_raster', False):
@@ -193,10 +194,10 @@ rule build_renewable_profiles:
         regions=lambda w: ("resources/regions_onshore.geojson"
                                    if w.technology in ('onwind', 'solar')
                                    else "resources/regions_offshore.geojson"),
-        cutout=lambda w: "cutouts/" + config["renewable"][w.technology]['cutout'] + "_{year}.nc"
+        cutout=lambda w: f"cutouts/{config['renewable'][w.technology]['cutout']}_{w.year}.nc"
     output: profile="resources/profile_{technology}_{year}.nc",
-    log: "logs/build_renewable_profile_{technology}.log"
-    benchmark: "benchmarks/build_renewable_profiles_{technology}"
+    log: "logs/build_renewable_profile_{technology}_{year}.log"
+    benchmark: "benchmarks/build_renewable_profiles_{technology}_{year}"
     threads: ATLITE_NPROCESSES
     resources: mem_mb=ATLITE_NPROCESSES * 5000
     wildcard_constraints: technology="(?!hydro).*" # Any technology other than hydro
@@ -207,9 +208,9 @@ rule build_hydro_profile:
     input:
         country_shapes='resources/country_shapes.geojson',
         eia_hydro_generation='data/bundle/EIA_hydro_generation_2000_2014.csv',
-        cutout=f"cutouts/{config['renewable']['hydro']['cutout']}.nc" if "hydro" in config["renewable"] else "config['renewable']['hydro']['cutout'] not configured",
-    output: 'resources/profile_hydro.nc'
-    log: "logs/build_hydro_profile.log"
+        cutout=f"cutouts/{config['renewable']['hydro']['cutout']}_{year}.nc" if "hydro" in config["renewable"] else "config['renewable']['hydro']['cutout'] not configured",
+    output: 'resources/profile_hydro_{year}.nc'
+    log: "logs/build_hydro_profile_{year}.log"
     resources: mem_mb=5000
     script: 'scripts/build_hydro_profile.py'
 
@@ -224,7 +225,7 @@ rule add_electricity:
         geth_hydro_capacities='data/geth2015_hydro_capacities.csv',
         load='resources/load.csv',
         nuts3_shapes='resources/nuts3_shapes.geojson',
-        **{f"profile_{tech}": f"resources/profile_{tech}_{year}.nc"
+        **{f"profile_{tech}": "resources/profile_" + str(tech) + "_{year}.nc"
            for tech in config['renewable']}
     output: "networks/elec_{year}.nc"
     log: "logs/add_electricity_{year}.log"
@@ -248,7 +249,7 @@ rule simplify_network:
         regions_onshore="resources/regions_onshore_elec_{year}_s{simpl}.geojson",
         regions_offshore="resources/regions_offshore_elec_{year}_s{simpl}.geojson",
         busmap='resources/busmap_elec_{year}_s{simpl}.csv',
-        connection_costs='resources/connection_costs_s{simpl}.csv'
+        connection_costs='resources/connection_costs_{year}_s{simpl}.csv'
     log: "logs/simplify_network/elec_{year}_s{simpl}.log"
     benchmark: "benchmarks/simplify_network/elec_{year}_s{simpl}"
     threads: 1
