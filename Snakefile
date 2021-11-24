@@ -193,7 +193,7 @@ if 'hydro' in config['renewable'].keys():
     rule build_hydro_profile:
         input:
             country_shapes='resources/country_shapes.geojson',
-            eia_hydro_generation='data/bundle/EIA_hydro_generation_2000_2014.csv',
+            eia_hydro_generation='data/bundle/EIA_hydro_generation_1980_2020.csv',
             cutout="cutouts/" + config["renewable"]['hydro']['cutout'] + "_{year}.nc"
         output: 'resources/profile_hydro_{year}.nc'
         log: "logs/build_hydro_profile_{year}.log"
