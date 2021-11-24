@@ -360,10 +360,13 @@ rule solve_one_cluster_compare:
     shadow: "shallow"
     script: "scripts/solve_network.py"
 
+rule presolve_all_networks:
+    input: expand("results/presolve/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_numNZs_stats.csv", **config['scenario'])
 
 rule presolve_network:
     input: network="networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
     output: stats="results/presolve/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_numNZs_stats.csv"
+    shadow: "shallow"
     script: "scripts/presolve_network.py"
 
 

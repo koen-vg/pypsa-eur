@@ -1,5 +1,6 @@
 
 import os
+from pathlib import Path
 import pandas as pd
 import gurobipy
 from tempfile import mkstemp
@@ -19,7 +20,7 @@ from pypsa.linopf import prepare_lopf
 
 from solve_network import prepare_network, extra_functionality
 
-num_presolves = 5
+num_presolves = 3
 
 if __name__ == "__main__":
     """Perform a number of presolves of the given network.
@@ -51,8 +52,9 @@ if __name__ == "__main__":
         n.determine_network_topology()
         n._multi_invest = 0
 
-        fdp, problem_fn = prepare_lopf(n, snapshots, True, False,
-                                       extra_functionality, None)
+        fdp, problem_fn = prepare_lopf(n, snapshots,
+                                       extra_functionality=extra_functionality,
+                                       solver_dir=tmpdir)
 
         m = gurobipy.read(problem_fn)
 
@@ -61,5 +63,9 @@ if __name__ == "__main__":
 
         p = m.presolve()
         stats.loc[i, "presolve_numNZs"] = p.numNZs
+
+        del p
+        del m
+        os.remove(problem_fn)
 
     stats.to_csv(snakemake.output.stats)
