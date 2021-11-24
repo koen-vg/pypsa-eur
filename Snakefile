@@ -25,22 +25,6 @@ wildcard_constraints:
     year="([0-9]+)|all"
 
 
-rule cluster_all_networks:
-    input: expand("networks/elec_{year}_s{simpl}_{clusters}.nc", **config['scenario'])
-
-
-rule extra_components_all_networks:
-    input: expand("networks/elec_{year}_s{simpl}_{clusters}_ec.nc", **config['scenario'])
-
-
-rule prepare_all_networks:
-    input: expand("networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
-
-
-rule solve_all_networks:
-    input: expand("results/networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
-
-
 if config['enable'].get('prepare_links_p_nom', False):
     rule prepare_links_p_nom:
         output: 'data/links_p_nom.csv'
