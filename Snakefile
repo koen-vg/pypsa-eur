@@ -45,10 +45,6 @@ rule solve_all_repetitions:
     input: expand("results/networks_repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc", **config['scenario'])
 
 
-rule solve_all_cluster_comparison:
-    input: expand("results/networks_cluster_comparison/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc", **config['cluster_comparison']['scenario'])        
-
-
 if config['enable'].get('prepare_links_p_nom', False):
     rule prepare_links_p_nom:
         output: 'data/links_p_nom.csv'
@@ -478,8 +474,8 @@ if 'misallocation' in config:
                         for (na, nb) in misalloc_pairs]
 
 
-rule calc_all_misalloc:
-    input: misalloc_outputs
+    rule calc_all_misalloc:
+        input: misalloc_outputs
 
          
 def memory_misalloc(w):
