@@ -21,7 +21,8 @@ wildcard_constraints:
     simpl="[a-zA-Z0-9]*|all",
     clusters="[0-9]+m?|all",
     ll="(v|c)([0-9\.]+|opt|all)|all",
-    opts="[-+a-zA-Z0-9\.]*"
+    opts="[-+a-zA-Z0-9\.]*",
+    rep="[0-9]+"
 
 
 rule cluster_all_networks:
@@ -38,6 +39,14 @@ rule prepare_all_networks:
 
 rule solve_all_networks:
     input: expand("results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
+
+
+rule solve_all_repetitions:
+    input: expand("results/networks_repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc", **config['scenario'])
+
+
+rule solve_all_cluster_comparison:
+    input: expand("results/networks_cluster_comparison/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc", **config['cluster_comparison']['scenario'])        
 
 
 if config['enable'].get('prepare_links_p_nom', False):
@@ -318,6 +327,34 @@ rule solve_network:
         python="logs/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
         memory="logs/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log"
     benchmark: "benchmarks/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+    threads: 4
+    resources: mem=memory
+    shadow: "shallow"
+    script: "scripts/solve_network.py"
+
+
+rule solve_one_rep:
+    input: "networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+    output: "results/networks_repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc"
+    log:
+        solver=normpath("logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_solver.log"),
+        python="logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_python.log",
+        memory="logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_memory.log"
+    benchmark: "benchmarks/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}"
+    threads: 4
+    resources: mem=memory
+    shadow: "shallow"
+    script: "scripts/solve_network.py"
+
+
+rule solve_one_cluster_compare:
+    input: "networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+    output: "results/networks_cluster_comparisons/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc"
+    log:
+        solver=normpath("logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_solver.log"),
+        python="logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_python.log",
+        memory="logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_memory.log"
+    benchmark: "benchmarks/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}"
     threads: 4
     resources: mem=memory
     shadow: "shallow"
