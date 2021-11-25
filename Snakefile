@@ -41,10 +41,6 @@ rule solve_all_networks:
     input: expand("results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
 
 
-rule solve_all_repetitions:
-    input: expand("results/networks_repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc", **config['scenario'])
-
-
 if config['enable'].get('prepare_links_p_nom', False):
     rule prepare_links_p_nom:
         output: 'data/links_p_nom.csv'
@@ -331,30 +327,17 @@ rule solve_network:
 
 rule solve_one_rep:
     input: "networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-    output: "results/networks_repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc"
+    output: "results/networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc"
     log:
-        solver=normpath("logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_solver.log"),
-        python="logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_python.log",
-        memory="logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_memory.log"
-    benchmark: "benchmarks/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}"
+        solver=normpath("logs/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_solver.log"),
+        python="logs/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_python.log",
+        memory="logs/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_memory.log"
+    benchmark: "benchmarks/solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}"
     threads: 4
     resources: mem=memory
     shadow: "shallow"
     script: "scripts/solve_network.py"
 
-
-rule solve_one_cluster_compare:
-    input: "networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-    output: "results/networks_cluster_comparisons/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}.nc"
-    log:
-        solver=normpath("logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_solver.log"),
-        python="logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_python.log",
-        memory="logs/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}_memory.log"
-    benchmark: "benchmarks/repetitions/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_rep{rep}"
-    threads: 4
-    resources: mem=memory
-    shadow: "shallow"
-    script: "scripts/solve_network.py"
 
 rule presolve_all_networks:
     input: expand("results/presolve/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_numNZs_stats.csv", **config['scenario'])
