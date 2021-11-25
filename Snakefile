@@ -15,7 +15,9 @@ configfile: "config.yaml"
 
 COSTS="data/costs.csv"
 ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
-
+#Try out fixed snapshots for static processes.
+#FIXED_SNAPSHOT_BEGIN = "2013-01-01"
+#FIXED_SNAPSHOT_END = "2014-01-01"
 
 wildcard_constraints:
     simpl="[a-zA-Z0-9]*|all",
@@ -73,7 +75,7 @@ rule build_powerplants:
     script: "scripts/build_powerplants.py"
 
 
-rule base_network:
+rule base_network_constant:
     input:
         eg_buses='data/entsoegridkit/buses.csv',
         eg_lines='data/entsoegridkit/lines.csv',
@@ -87,8 +89,28 @@ rule base_network:
         offshore_shapes='resources/offshore_shapes.geojson',
         europe_shape='resources/europe_shape.geojson'
     output: "networks/base.nc"
-    log: "logs/base_network.log"
-    benchmark: "benchmarks/base_network"
+    log: "logs/base_network_constant.log"
+    benchmark: "benchmarks/base_network_constant"
+    threads: 1
+    resources: mem=500
+    script: "scripts/base_network_constant.py"
+
+rule base_network:
+    input:
+        eg_buses='data/entsoegridkit/buses.csv',
+        eg_lines='data/entsoegridkit/lines.csv',
+        eg_links='data/entsoegridkit/links.csv',
+        eg_converters='data/entsoegridkit/converters.csv',
+        eg_transformers='data/entsoegridkit/transformers.csv',
+        parameter_corrections='data/parameter_corrections.yaml',
+        links_p_nom='data/links_p_nom.csv',
+        links_tyndp='data/links_tyndp.csv',
+        country_shapes='resources/country_shapes.geojson',
+        offshore_shapes='resources/offshore_shapes.geojson',
+        europe_shape='resources/europe_shape.geojson'
+    output: "networks/base_{year}.nc"
+    log: "logs/base_network_{year}.log"
+    benchmark: "benchmarks/base_network_{year}"
     threads: 1
     resources: mem=500
     script: "scripts/base_network.py"
@@ -167,7 +189,7 @@ if config['enable'].get('retrieve_natura_raster', True):
 
 rule build_renewable_profiles:
     input:
-        base_network="networks/base.nc",
+        base_network="networks/base_{year}.nc",
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
         natura="resources/natura.tiff",
         gebco=lambda w: ("data/bundle/GEBCO_2014_2D.nc"
@@ -203,7 +225,7 @@ if 'hydro' in config['renewable'].keys():
 
 rule add_electricity:
     input:
-        base_network='networks/base.nc',
+        base_network='networks/base_{year}.nc',
         tech_costs=COSTS,
         regions="resources/regions_onshore.geojson",
         powerplants='resources/powerplants.csv',

@@ -63,6 +63,7 @@ Description
 """
 
 import logging
+#from Snakefile import FIXED_SNAPSHOT_BEGIN, FIXED_SNAPSHOT_END
 from _helpers import configure_logging
 
 import pypsa
@@ -554,8 +555,8 @@ def base_network():
     n = pypsa.Network()
     n.name = 'PyPSA-Eur'
 
-    #n.set_snapshots(pd.date_range(freq='h', **snakemake.config['snapshots']))
-    n.set_snapshots(pd.date_range(start = snakemake.wildcards.year + '-01-01', end = str(int(snakemake.wildcards.year) + 1)+ '-01-01', freq='h', closed = 'left'))
+    n.set_snapshots(pd.date_range(freq='h', **snakemake.config['snapshots']))
+    #n.set_snapshots(pd.date_range(start = snakemake.input.snapshot_begin, end = snakemake.input.snapshot_end, freq='h', closed = left))
     n.snapshot_weightings[:] *= 8760. / n.snapshot_weightings.sum()
 
     n.import_components_from_dataframe(buses, "Bus")
