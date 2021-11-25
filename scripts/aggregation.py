@@ -102,7 +102,7 @@ def aggregate_by_constraints(
                     axis=0)
     # Indexing the constraints properly makes it possible to unpack
     # the associated dual variables after solving.
-    lhs.index = pd.Index([sns[0] for sns in snapshot_collection])
+    lhs.index = pd.Index([s for sns in snapshot_collection for s in sns[:-1]])
     define_constraints(n, lhs, "=", 0, 'Link', 'link aggregation')
 
 
