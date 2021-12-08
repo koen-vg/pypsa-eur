@@ -448,9 +448,9 @@ def _set_countries_and_substations(n):
         n.transformers.drop('length', axis=1, inplace=True)
 
         for b in n.buses.index[c_tag_nan_b]:
-            df = (pd.DataFrame(dict(pathlength=nx.single_source_dijkstra_path_length(graph, b, cutoff=200)))
+            df = (pd.DataFrame(dict(pathlength=nx.single_source_dijkstra_path_length(graph, b, cutoff=2000)))
                   .join(n.buses.country).dropna())
-            assert not df.empty, "No buses with defined country within 200km of bus `{}`".format(b)
+            assert not df.empty, "No buses with defined country within {cutoff}km of bus `{}`".format(b)
             n.buses.at[b, 'country'] = df.loc[df.pathlength.idxmin(), 'country']
 
         logger.warning("{} buses are not in any country or offshore shape,"
