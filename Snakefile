@@ -217,6 +217,9 @@ rule build_renewable_profiles:
     script: "scripts/build_renewable_profiles.py"
 
 
+
+ruleorder: build_hydro_profile > build_renewable_profiles
+
 rule build_hydro_profile:
     input:
         country_shapes='resources/country_shapes.geojson',

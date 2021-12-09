@@ -26,7 +26,7 @@ Relevant Settings
 Inputs
 ------
 
-- ``data/bundle/EIA_hydro_generation_1980_2020.csv``: Hydroelectricity net generation per country and year (`EIA <https://www.eia.gov/international/data/world/electricity/electricity-generation?pd=2&p=000000000000000000000080000000g&u=0&f=A&v=mapbubble&a=-&i=none&vo=value&t=G&g=000000000000008&l=71-0028g000017kg6940080a44000e02000g00004g8001o&l=275-00000008010000000000000000008g000g000000g0g00000004&s=315532800000&e=1577836800000&>`_)
+- ``data/bundle/EIA_scaled_hydro_1980_2020.csv``: Hydroelectricity net generation per country and year (`EIA <https://www.eia.gov/international/data/world/electricity/electricity-generation?pd=2&p=000000000000000000000080000000g&u=0&f=A&v=mapbubble&a=-&i=none&vo=value&t=G&g=000000000000008&l=71-0028g000017kg6940080a44000e02000g00004g8001o&l=275-00000008010000008000000000008g000g000000g0g000g0004&l=164-10002000000000020g00000000000000000000000000000000000008&l=170--110&s=315532800000&e=1577836800000>`_, calculations are described in ``../../../data/calculations_scaling_hydro_data.ods``)
 
     .. image:: ../img/hydrogeneration.png
         :scale: 33 %
