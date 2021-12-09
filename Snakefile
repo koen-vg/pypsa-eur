@@ -13,6 +13,8 @@ if not exists("config.yaml"):
 
 configfile: "config.yaml"
 
+cutout_data_dir = "../../../data/cutouts"
+
 COSTS="data/costs.csv"
 ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
 #Try out fixed snapshots for static processes.
@@ -167,6 +169,12 @@ if config['enable'].get('build_cutout', False):
 #         input: HTTP.remote("zenodo.org/record/4709858/files/{cutout}.nc", keep_local=True, static=True)
 #         output: "cutouts/{cutout}.nc"
 #         shell: "mv {input} {output}"
+
+# Instead of downloading cutouts, we have then stored and just link to
+# them as necessary.
+rule link_cutout:
+    output: "cutouts/{cutout}.nc"
+    shell: "ln -s " + cutout_data_dir + "/{cutout}.nc cutouts/{cutout}.nc"
 
 
 if config['enable'].get('build_natura_raster', False):
