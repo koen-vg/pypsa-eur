@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-from os.path import normpath, exists
+from os.path import normpath, exists, join
 from shutil import copyfile, move
 
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
@@ -13,7 +13,11 @@ if not exists("config.yaml"):
 
 configfile: "config.yaml"
 
-cutout_data_dir = "../../../data/cutouts"
+# The directory of the top-level near-optimal snakemake workflow:
+top_level_dir = "../../.."
+# Relative to it we can find data directories.
+cutout_data_dir = join(top_level_dir, "data/cutouts")
+demand_data_file = join(top_level_dir, "data/data/europe_demand_artificial_1980-2020.csv")
 
 COSTS="data/costs.csv"
 ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
@@ -60,7 +64,7 @@ rule retrieve_load_data:
     # subworkflow in the future. For now, just assume that the data
     # has been generated, and copy it into the location expected by
     # pypsa-eur.
-    input: "../../data/data/europe_demand_artificial_1980-2020.csv"
+    input: demand_data_file
     output: "resources/load.csv"
     shell: "cp {input} {output}"
     
@@ -174,7 +178,7 @@ if config['enable'].get('build_cutout', False):
 # them as necessary.
 rule link_cutout:
     output: "cutouts/{cutout}.nc"
-    shell: "ln -s " + cutout_data_dir + "/{cutout}.nc cutouts/{cutout}.nc"
+    shell: "ln -s ../" + cutout_data_dir + "/{wildcards.cutout}.nc cutouts/{wildcards.cutout}.nc"
 
 
 if config['enable'].get('build_natura_raster', False):
