@@ -1,6 +1,6 @@
 # Introduction
 
-This is a modification to PyPSA-Eur which allows running the model with weather- and demand years from 1980 to 2015.
+This is a modification to PyPSA-Eur which allows running the model with weather- and demand years from 1980 to 2020.
 
 # Modifications
 
@@ -11,6 +11,7 @@ Simple country-level load (demand) data is generated for the period based on tem
 ## Renewable capacity factor time series
 
 We use the ERA5 dataset over the period to generate renewable capacity factor time series.
+Hydro data is scaled up to 2020 capacity levels (proportionally) and extended for countries that did not exist for time periods between 1980 and 2020.
 
 ## Implementation details
 
