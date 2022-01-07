@@ -200,13 +200,14 @@ def load_powerplants(ppl_fn):
             .replace({'carrier': carrier_dict}))
 
 
-def attach_load(n, regions, load, nuts3_shapes, countries, scaling=1.):
+def attach_load(n, regions, load, nuts3_shapes, countries, scaling=1., year):
 
     substation_lv_i = n.buses.index[n.buses['substation_lv']]
     regions = (gpd.read_file(regions).set_index('name')
                .reindex(substation_lv_i))
     opsd_load = (pd.read_csv(load, index_col=0, parse_dates=True)
                 .filter(items=countries))
+    opsd_load = opsd_load.loc[year]
 
     logger.info(f"Load data scaled with scalling factor {scaling}.")
     opsd_load *= scaling
@@ -558,7 +559,7 @@ if __name__ == "__main__":
     ppl = load_powerplants(snakemake.input.powerplants)
 
     attach_load(n, snakemake.input.regions, snakemake.input.load, snakemake.input.nuts3_shapes,
-                snakemake.config['countries'], snakemake.config['load']['scaling_factor'])
+                snakemake.config['countries'], snakemake.config['load']['scaling_factor'], snakemake.wildcard.year)
 
     update_transmission_costs(n, costs, snakemake.config['lines']['length_factor'])
 
