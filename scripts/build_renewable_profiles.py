@@ -189,6 +189,7 @@ import logging
 from pypsa.geo import haversine
 from shapely.geometry import LineString
 import time
+from tempfile import NamedTemporaryFile
 
 from _helpers import configure_logging
 
@@ -216,8 +217,12 @@ if __name__ == '__main__':
     if correction_factor != 1.:
         logger.info(f'correction_factor is set as {correction_factor}')
 
+    # Load the provided cutout files and merge them.
+    cutouts = [atlite.Cutout(c) for c in paths['cutouts']]
+    xdatas = [c.data for c in cutouts]
+    combined_data = xr.concat(xdatas, dim="time", data_vars="minimal")
+    cutout = atlite.Cutout(NamedTemporaryFile().name, data=combined_data)
 
-    cutout = atlite.Cutout(paths['cutout'])
     regions = gpd.read_file(paths.regions).set_index('name').rename_axis('bus')
     buses = regions.index
 

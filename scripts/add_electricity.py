@@ -203,9 +203,16 @@ def attach_load(n):
     substation_lv_i = n.buses.index[n.buses['substation_lv']]
     regions = (gpd.read_file(snakemake.input.regions).set_index('name')
                .reindex(substation_lv_i))
+
+    # Get the load data for the selected years.
     opsd_load = (pd.read_csv(snakemake.input.load, index_col=0, parse_dates=True)
                 .filter(items=snakemake.config['countries']))
-    opsd_load = opsd_load.loc[snakemake.wildcards.year]
+    w_y = snakemake.wildcards.year
+    if "-" in w_y:
+        [start, end] = w_y.split("-")
+    else:
+        start = end = w_y
+    opsd_load = opsd_load.loc[start : end]  # Note that the indexing is inclusive here.
 
     scaling = snakemake.config.get('load', {}).get('scaling_factor', 1.0)
     logger.info(f"Load data scaled with scalling factor {scaling}.")

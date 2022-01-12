@@ -63,8 +63,10 @@ import logging
 from _helpers import configure_logging
 
 import atlite
+import xarray as xr
 import geopandas as gpd
 from vresutils import hydro as vhydro
+from tempfile import NamedTemporaryFile
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +77,12 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     config = snakemake.config['renewable']['hydro']
-    cutout = atlite.Cutout(snakemake.input.cutout)
+
+    # Load the provided cutout files and merge them.
+    cutouts = [atlite.Cutout(c) for c in snakemake.input.cutouts]
+    xdatas = [c.data for c in cutouts]
+    combined_data = xr.concat(xdatas, dim="time")
+    cutout = atlite.Cutout(NamedTemporaryFile().name, data=combined_data)
 
     countries = snakemake.config['countries']
     country_shapes = (gpd.read_file(snakemake.input.country_shapes)
