@@ -30,7 +30,7 @@ wildcard_constraints:
     clusters="[0-9]+m?|all",
     ll="(v|c)([0-9\.]+|opt|all)|all",
     opts="[-+a-zA-Z0-9\.]*",
-    year="([0-9]+)|all"
+    year="([0-9]+)(-[0-9]+)?"
 
 
 if config['enable'].get('prepare_links_p_nom', False):
@@ -198,6 +198,18 @@ if config['enable'].get('retrieve_natura_raster', True):
         run: move(input[0], output[0])
 
 
+def renewable_profiles_cutouts(wildcards):
+    if "-" in wildcards.year:
+        [start, end] = wildcards.year.split("-")
+    else:
+        start = end = wildcards.year
+    year_range = map(str, range(int(start), int(end) + 1))
+    return [
+        f"cutouts/{config['renewable'][wildcards.technology]['cutout']}_{y}.nc"
+        for y in year_range
+    ]
+
+
 rule build_renewable_profiles:
     input:
         base_network="networks/base_{year}.nc",
@@ -211,7 +223,7 @@ rule build_renewable_profiles:
         regions=lambda w: ("resources/regions_onshore.geojson"
                                    if w.technology in ('onwind', 'solar')
                                    else "resources/regions_offshore.geojson"),
-        cutout=lambda w: f"cutouts/{config['renewable'][w.technology]['cutout']}_{w.year}.nc"
+        cutouts=renewable_profiles_cutouts
     output: profile="resources/profile_{technology}_{year}.nc",
     log: "logs/build_renewable_profile_{technology}_{year}.log"
     benchmark: "benchmarks/build_renewable_profiles_{technology}_{year}"
@@ -224,11 +236,25 @@ rule build_renewable_profiles:
 
 ruleorder: build_hydro_profile > build_renewable_profiles
 
+def hydro_profiles_cutouts(wildcards):
+    if "hydro" in config["renewable"]:
+        if "-" in wildcards.year:
+            [start, end] = wildcards.year.split("-")
+        else:
+            start = end = wildcards.year
+        year_range = map(str, range(int(start), int(end) + 1))
+        return [
+            f"cutouts/{config['renewable']['hydro']['cutout']}_{y}.nc"
+            for y in year_range
+        ]
+    else:
+        return "config['renewable']['hydro']['cutout'] not configured"
+
 rule build_hydro_profile:
     input:
         country_shapes='resources/country_shapes.geojson',
         eia_hydro_generation='data/bundle/EIA_hydro_generation_1980_2020.csv',
-        cutout=f"cutouts/{config['renewable']['hydro']['cutout']}_{year}.nc" if "hydro" in config["renewable"] else "config['renewable']['hydro']['cutout'] not configured",
+        cutout=hydro_profiles_cutouts
     output: 'resources/profile_hydro_{year}.nc'
     log: "logs/build_hydro_profile_{year}.log"
     resources: mem_mb=5000

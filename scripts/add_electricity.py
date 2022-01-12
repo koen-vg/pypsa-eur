@@ -207,7 +207,11 @@ def attach_load(n, regions, load, nuts3_shapes, countries, scaling=1., year):
                .reindex(substation_lv_i))
     opsd_load = (pd.read_csv(load, index_col=0, parse_dates=True)
                 .filter(items=countries))
-    opsd_load = opsd_load.loc[year]
+    if "-" in year:
+        [start, end] = year.split("-")
+    else:
+        start = end = year
+    opsd_load = opsd_load.loc[start : end]  # Note that the indexing is inclusive here.
 
     logger.info(f"Load data scaled with scalling factor {scaling}.")
     opsd_load *= scaling
