@@ -72,9 +72,23 @@ logger = logging.getLogger(__name__)
 
 def add_co2limit(n, co2limit, Nyears=1.):
 
+    # Note: in the current version of PyPSA-Eur, `Nyears` is always 1
+    # by mistake. So we need to determine the number of years for the
+    # emissions limit in a different way.
+    w_y = snakemake.wildcards.year
+    if "-" in w_y:
+        [start, end] = w_y.split("-")
+        num_years = int(end) - int(start) + 1  # The range is inclusive.
+    else:
+        num_years = 1
+
+    limit = annual_emissions * num_years
+
+    logging.info(f"Setting a total Co2 limit of {limit:.3f}")
+
     n.add("GlobalConstraint", "CO2Limit",
           carrier_attribute="co2_emissions", sense="<=",
-          constant=co2limit * Nyears)
+          constant=limit)
 
 
 def add_emission_prices(n, emission_prices={'co2': 0.}, exclude_co2=False):
