@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import sys
 import pandas as pd
 from pathlib import Path
 
@@ -24,7 +25,7 @@ def configure_logging(snakemake, skip_handlers=False):
     skip_handlers : True | False (default)
         Do (not) skip the default handlers created for redirecting output to STDERR and file.
     """
-
+    # First, set up the logging module.
     import logging
 
     kwargs = snakemake.config.get('logging', dict())
@@ -43,6 +44,17 @@ def configure_logging(snakemake, skip_handlers=False):
                 ]
             })
     logging.basicConfig(**kwargs)
+
+    # Also configure exceptions to be logged.
+    # (See https://stackoverflow.com/a/16993115)
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+
+        logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+    sys.excepthook = handle_exception
 
 
 def load_network(import_name=None, custom_components=None):
