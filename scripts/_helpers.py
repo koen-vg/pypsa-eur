@@ -1,10 +1,43 @@
-# SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
+# SPDX-FileCopyrightText: 2017-2020 The PyPSA-Eur Authors, Koen, Aleks
 #
 # SPDX-License-Identifier: MIT
+
+# TODO: update copyright text.
 
 import sys
 import pandas as pd
 from pathlib import Path
+
+from typing import List
+
+
+def parse_year_wildcard(w: str) -> List[int]:
+    """Parse a {year} wildcard to a list of years.
+
+    The wildcard can be of the form `1980+1990+2000-2002`; a set of
+    ranges (two years joined by a `-`) and individual years all
+    separated by `+`s. The above wildcard is parsed to the list [1980,
+    1990, 2000, 2001, 2002].
+
+    """
+    years = []
+    for rng in w.split("+"):
+        try:
+            if "-" in rng:
+                # `rng` is a range of years.
+                [start, end] = rng.split("-")
+                # Check that the range is well-formed.
+                if end < start:
+                    raise ValueError(f"Malformed range of years {rng}.")
+                # Add the range (inclusive) to the set of years.
+                years.extend(range(int(start), int(end) + 1))
+            else:
+                # `rng` is just a single year.
+                years.append(int(rng))
+        except ValueError:
+            raise ValueError(f"Illegal range of years {rng} encountered.")
+    # Sort the years before returning.
+    return sorted(years)
 
 
 def configure_logging(snakemake, skip_handlers=False):
@@ -131,6 +164,7 @@ def load_network_for_plots(fn, tech_costs, config, combine_hydro_ps=True):
     # bus_carrier = n.storage_units.bus.map(n.buses.carrier)
     # n.storage_units.loc[bus_carrier == "heat","carrier"] = "water tanks"
 
+    # Note: this is not 100% accurate with leap years, but good enough here.
     Nyears = n.snapshot_weightings.objective.sum() / 8760.
     costs = load_costs(Nyears, tech_costs, config['costs'], config['electricity'])
     update_transmission_costs(n, costs)

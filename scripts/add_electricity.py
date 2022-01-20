@@ -84,7 +84,7 @@ It further adds extendable ``generators`` with **zero** capacity for
 """
 
 import logging
-from _helpers import configure_logging, update_p_nom_max
+from _helpers import configure_logging, parse_year_wildcard, update_p_nom_max
 
 import pypsa
 import pandas as pd
@@ -206,13 +206,8 @@ def attach_load(n):
 
     # Get the load data for the selected years.
     opsd_load = (pd.read_csv(snakemake.input.load, index_col=0, parse_dates=True)
-                .filter(items=snakemake.config['countries']))
-    w_y = snakemake.wildcards.year
-    if "-" in w_y:
-        [start, end] = w_y.split("-")
-    else:
-        start = end = w_y
-    opsd_load = opsd_load.loc[start : end]  # Note that the indexing is inclusive here.
+                 .filter(items=snakemake.config['countries']))
+    opsd_load = opsd_load.loc[n.snapshots]
 
     scaling = snakemake.config.get('load', {}).get('scaling_factor', 1.0)
     logger.info(f"Load data scaled with scalling factor {scaling}.")
@@ -569,7 +564,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.base_network)
-    Nyears = n.snapshot_weightings.objective.sum() / 8760.
+    Nyears = len(parse_year_wildcard(snakemake.wildcards.year))
 
     costs = load_costs(Nyears)
     ppl = load_powerplants()

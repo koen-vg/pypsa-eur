@@ -63,7 +63,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, parse_year_wildcard
 
 import pypsa
 import yaml
@@ -554,29 +554,20 @@ def base_network():
     n = pypsa.Network()
     n.name = 'PyPSA-Eur'
 
-    # Set the time period over which to run the model. This depends on
-    # the {year} wildcard, which is either a single year or an
-    # inclusive range of years. (Of the form '1980' or '1980-1985').
-    w_y = snakemake.wildcards.year
-    if "-" in w_y:
-        # In this case, we have a range of years.
-        [start, end] = w_y.split("-")
-        # Check that the range makes sense.
-        if int(end) - int(start) < 0:
-            raise RuntimeError(f"Year range {w_y} is invalid")
-    else:
-        # In this case, the wilcard must consist of a single year.
-        start = end = w_y
-    # Assign the model snapshots.
-    n.set_snapshots(
+    # Set the time period over which to run the model. The time period
+    # is a set of years determined by the {year} wildcard. The years
+    # not not form a contiguous range.
+    years = parse_year_wildcard(snakemake.wildcards.year)
+    year_ranges = [
         pd.date_range(
-            start=start + "-01-01",
-            end=str(int(end) + 1) + "-01-01",
+            f"{y}-01-01",
+            end=f"{y + 1}-01-01",
             freq="h",
             closed="left",
         )
-    )
-    n.snapshot_weightings[:] *= 8760.0 / n.snapshot_weightings.sum()
+        for y in years
+    ]
+    n.set_snapshots(year_ranges[0].union_many(year_ranges[1:]))
 
     n.import_components_from_dataframe(buses, "Bus")
     n.import_components_from_dataframe(lines, "Line")

@@ -83,7 +83,7 @@ The rule :mod:`simplify_network` does up to four things:
 """
 
 import logging
-from _helpers import configure_logging, update_p_nom_max
+from _helpers import configure_logging, parse_year_wildcard, update_p_nom_max
 
 from cluster_network import clustering_for_n_clusters, cluster_regions
 from add_electricity import load_costs
@@ -141,7 +141,7 @@ def simplify_network_to_380(n):
 def _prepare_connection_costs_per_link(n):
     if n.links.empty: return {}
 
-    Nyears = n.snapshot_weightings.objective.sum() / 8760
+    Nyears = len(parse_year_wildcard(snakemake.wildcards.year))
     costs = load_costs(Nyears, snakemake.input.tech_costs,
                        snakemake.config['costs'], snakemake.config['electricity'])
 
