@@ -56,7 +56,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging
+from _helpers import configure_logging, parse_year_wildcard
 
 import re
 import pypsa
@@ -72,17 +72,7 @@ logger = logging.getLogger(__name__)
 
 def add_co2limit(n, co2limit, Nyears=1.):
 
-    # Note: in the current version of PyPSA-Eur, `Nyears` is always 1
-    # by mistake. So we need to determine the number of years for the
-    # emissions limit in a different way.
-    w_y = snakemake.wildcards.year
-    if "-" in w_y:
-        [start, end] = w_y.split("-")
-        num_years = int(end) - int(start) + 1  # The range is inclusive.
-    else:
-        num_years = 1
-
-    limit = annual_emissions * num_years
+    limit = annual_emissions * Nyears
 
     logging.info(f"Setting a total Co2 limit of {limit:.3f}")
 
@@ -141,7 +131,17 @@ def average_every_nhours(n, offset):
     logger.info(f"Resampling the network to {offset}")
     m = n.copy(with_time=False)
 
+    # Resample the snapshot weightings.
     snapshot_weightings = n.snapshot_weightings.resample(offset).sum()
+
+    # The resampling produces a contiguous date range. In case the
+    # original snapshot index was not contiguous, we need to drop all
+    # rows with zero weight (corresponding to time steps not included
+    # in the original snapshots).
+    zeros_i = snapshot_weightings.loc[snapshot_weightings.objective == 0].index
+    snapshot_weightings.drop(labels=zeros_i, axis='index', inplace=True)
+
+    # Apply the snapshots.
     m.set_snapshots(snapshot_weightings.index)
     m.snapshot_weightings = snapshot_weightings
 
@@ -149,7 +149,7 @@ def average_every_nhours(n, offset):
         pnl = getattr(m, c.list_name+"_t")
         for k, df in c.pnl.items():
             if not df.empty:
-                pnl[k] = df.resample(offset).mean()
+                pnl[k] = df.resample(offset).mean().loc[m.snapshots]
 
     return m
 
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     opts = snakemake.wildcards.opts.split('-')
 
     n = pypsa.Network(snakemake.input[0])
-    Nyears = n.snapshot_weightings.objective.sum() / 8760.
+    Nyears = len(parse_year_wildcard(snakemake.wildcards.year))
     costs = load_costs(snakemake.input.tech_costs, snakemake.config['costs'], snakemake.config['electricity'], Nyears)
 
     set_line_s_max_pu(n, snakemake.config['lines']['s_max_pu'])

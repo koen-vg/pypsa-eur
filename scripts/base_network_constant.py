@@ -557,7 +557,6 @@ def base_network():
 
     n.set_snapshots(pd.date_range(freq='h', **snakemake.config['snapshots']))
     #n.set_snapshots(pd.date_range(start = snakemake.input.snapshot_begin, end = snakemake.input.snapshot_end, freq='h', closed = left))
-    n.snapshot_weightings[:] *= 8760. / n.snapshot_weightings.sum()
 
     n.import_components_from_dataframe(buses, "Bus")
     n.import_components_from_dataframe(lines, "Line")

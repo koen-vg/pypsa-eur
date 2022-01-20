@@ -84,7 +84,7 @@ It further adds extendable ``generators`` with **zero** capacity for
 """
 
 import logging
-from _helpers import configure_logging, update_p_nom_max
+from _helpers import configure_logging, parse_year_wildcard, update_p_nom_max
 
 import pypsa
 import pandas as pd
@@ -200,18 +200,14 @@ def load_powerplants(ppl_fn):
             .replace({'carrier': carrier_dict}))
 
 
-def attach_load(n, regions, load, nuts3_shapes, countries, scaling=1., year):
+def attach_load(n, regions, load, nuts3_shapes, countries, scaling=1.):
 
     substation_lv_i = n.buses.index[n.buses['substation_lv']]
     regions = (gpd.read_file(regions).set_index('name')
                .reindex(substation_lv_i))
     opsd_load = (pd.read_csv(load, index_col=0, parse_dates=True)
                 .filter(items=countries))
-    if "-" in year:
-        [start, end] = year.split("-")
-    else:
-        start = end = year
-    opsd_load = opsd_load.loc[start : end]  # Note that the indexing is inclusive here.
+    opsd_load = opsd_load.loc[n.snapshots]  # Note that the indexing is inclusive here.
 
     logger.info(f"Load data scaled with scalling factor {scaling}.")
     opsd_load *= scaling
@@ -557,13 +553,13 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.base_network)
-    Nyears = n.snapshot_weightings.objective.sum() / 8760.
+    Nyears = len(parse_year_wildcard(snakemake.wildcards.year))
 
     costs = load_costs(snakemake.input.tech_costs, snakemake.config['costs'], snakemake.config['electricity'], Nyears)
     ppl = load_powerplants(snakemake.input.powerplants)
 
     attach_load(n, snakemake.input.regions, snakemake.input.load, snakemake.input.nuts3_shapes,
-                snakemake.config['countries'], snakemake.config['load']['scaling_factor'], snakemake.wildcard.year)
+                snakemake.config['countries'], snakemake.config['load']['scaling_factor'])
 
     update_transmission_costs(n, costs, snakemake.config['lines']['length_factor'])
 

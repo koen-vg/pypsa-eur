@@ -5,6 +5,8 @@
 from os.path import normpath, exists, join
 from shutil import copyfile, move
 
+from scripts._helpers import parse_year_wildcard
+
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 HTTP = HTTPRemoteProvider()
 
@@ -30,7 +32,10 @@ wildcard_constraints:
     clusters="[0-9]+m?|all",
     ll="(v|c)([0-9\.]+|opt|all)|all",
     opts="[-+a-zA-Z0-9\.]*",
-    year="([0-9]+)(-[0-9]+)?"
+    # The {year} wildcard represents a set of years and consists of a
+    # number of single years or ranges (of the form 2000-2020) all
+    # separated by `+`s.
+    year="([0-9]+)(-[0-9]+)?(\+([0-9]+)(-[0-9]+)?)*",
 
 
 if config['enable'].get('prepare_links_p_nom', False):
@@ -199,14 +204,10 @@ if config['enable'].get('retrieve_natura_raster', True):
 
 
 def renewable_profiles_cutouts(wildcards):
-    if "-" in wildcards.year:
-        [start, end] = wildcards.year.split("-")
-    else:
-        start = end = wildcards.year
-    year_range = map(str, range(int(start), int(end) + 1))
+    years = parse_year_wildcard(wildcards.year)
     return [
         f"cutouts/{config['renewable'][wildcards.technology]['cutout']}_{y}.nc"
-        for y in year_range
+        for y in years
     ]
 
 
@@ -238,14 +239,10 @@ ruleorder: build_hydro_profile > build_renewable_profiles
 
 def hydro_profiles_cutouts(wildcards):
     if "hydro" in config["renewable"]:
-        if "-" in wildcards.year:
-            [start, end] = wildcards.year.split("-")
-        else:
-            start = end = wildcards.year
-        year_range = map(str, range(int(start), int(end) + 1))
+        years = parse_year_wildcard(wildcards.year)
         return [
             f"cutouts/{config['renewable']['hydro']['cutout']}_{y}.nc"
-            for y in year_range
+            for y in years
         ]
     else:
         return "config['renewable']['hydro']['cutout'] not configured"
