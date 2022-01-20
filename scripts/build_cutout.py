@@ -95,7 +95,7 @@ import logging
 import atlite
 import geopandas as gpd
 import pandas as pd
-from _helpers import configure_logging
+from _helpers import configure_logging, parse_year_wildcard
 
 
 logger = logging.getLogger(__name__)
@@ -108,9 +108,24 @@ if __name__ == "__main__":
 
     cutout_params = snakemake.config['atlite']['cutouts'][snakemake.wildcards.cutout]
 
-    snapshots = pd.date_range(freq='h', start = snakemake.wildcards.year + '-01-01', end = str(int(snakemake.wildcards.year) + 1)+ '-01-01', closed = left)
+    snapshots = pd.date_range(freq='h', **snakemake.config['snapshots'])
     time = [snapshots[0], snapshots[-1]]
     cutout_params['time'] = slice(*cutout_params.get('time', time))
+
+    # Something like the following might be used to build cutouts over
+    # sets of years. It has not been tested!
+    # years = parse_year_wildcard(snakemake.wildcards.year)
+    # year_ranges = [
+    #     pd.date_range(
+    #         f"{y}-01-01",
+    #         end=f"{y + 1}-01-01",
+    #         freq="h",
+    #         closed="left",
+    #     )
+    #     for y in years
+    # ]
+    # snapshots = year_ranges[0].union_many(year_ranges[1:])
+    # cutout_params['time'] = snapshots
 
     if {'x', 'y', 'bounds'}.isdisjoint(cutout_params):
         # Determine the bounds from bus regions with a buffer of two grid cells
