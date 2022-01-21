@@ -10,16 +10,12 @@ from scripts._helpers import parse_year_wildcard
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 HTTP = HTTPRemoteProvider()
 
-if not exists("config.yaml"):
-    copyfile("config.default.yaml", "config.yaml")
+# Commented out since it doesn't work when pypsa-eur is used as a
+# snakemake module.
+# if not exists("config.yaml"):
+#     copyfile("config.default.yaml", "config.yaml")
 
 configfile: "config.yaml"
-
-# The directory of the top-level near-optimal snakemake workflow:
-top_level_dir = "../../.."
-# Relative to it we can find data directories.
-cutout_data_dir = join(top_level_dir, "data/cutouts")
-demand_data_file = join(top_level_dir, "data/data/europe_demand_artificial_1980-2020.csv")
 
 COSTS="data/costs.csv"
 ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
@@ -61,17 +57,8 @@ if config['enable'].get('retrieve_databundle', True):
     rule retrieve_databundle:
         output: expand('data/bundle/{file}', file=datafiles)
         log: "logs/retrieve_databundle.log"
+        conda: "envs/environment.yaml"
         script: 'scripts/retrieve_databundle.py'
-
-
-rule retrieve_load_data:
-    # If desirable, we could include the demand data generation as a
-    # subworkflow in the future. For now, just assume that the data
-    # has been generated, and copy it into the location expected by
-    # pypsa-eur.
-    input: demand_data_file
-    output: "resources/load.csv"
-    shell: "cp {input} {output}"
     
 
 rule build_powerplants:
@@ -80,6 +67,7 @@ rule build_powerplants:
         custom_powerplants="data/custom_powerplants.csv"
     output: "resources/powerplants.csv"
     log: "logs/build_powerplants.log"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=500
     script: "scripts/build_powerplants.py"
@@ -101,6 +89,7 @@ rule base_network_constant:
     output: "networks/base.nc"
     log: "logs/base_network_constant.log"
     benchmark: "benchmarks/base_network_constant"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=500
     script: "scripts/base_network_constant.py"
@@ -121,6 +110,7 @@ rule base_network:
     output: "networks/base_{year}.nc"
     log: "logs/base_network_{year}.log"
     benchmark: "benchmarks/base_network_{year}"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=500
     script: "scripts/base_network.py"
@@ -141,6 +131,7 @@ rule build_shapes:
         europe_shape='resources/europe_shape.geojson',
         nuts3_shapes='resources/nuts3_shapes.geojson'
     log: "logs/build_shapes.log"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=500
     script: "scripts/build_shapes.py"
@@ -155,6 +146,7 @@ rule build_bus_regions:
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
     log: "logs/build_bus_regions.log"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=1000
     script: "scripts/build_bus_regions.py"
@@ -167,23 +159,18 @@ if config['enable'].get('build_cutout', False):
         output: "cutouts/{cutout}.nc"
         log: "logs/build_cutout/{cutout}.log"
         benchmark: "benchmarks/build_cutout_{cutout}"
+        conda: "envs/environment.yaml"
         threads: ATLITE_NPROCESSES
         resources: mem=ATLITE_NPROCESSES * 1000
         script: "scripts/build_cutout.py"
 
 
-# We are not retrieving cutouts like this.
+# Cutouts are managed by the top-level snakemake workflow.
 # if config['enable'].get('retrieve_cutout', True):
 #     rule retrieve_cutout:
 #         input: HTTP.remote("zenodo.org/record/4709858/files/{cutout}.nc", keep_local=True, static=True)
 #         output: "cutouts/{cutout}.nc"
 #         shell: "mv {input} {output}"
-
-# Instead of downloading cutouts, we have then stored and just link to
-# them as necessary.
-rule link_cutout:
-    output: "cutouts/{cutout}.nc"
-    shell: "ln -s ../" + cutout_data_dir + "/{wildcards.cutout}.nc cutouts/{wildcards.cutout}.nc"
 
 
 if config['enable'].get('build_natura_raster', False):
@@ -193,6 +180,7 @@ if config['enable'].get('build_natura_raster', False):
             cutouts=expand("cutouts/{cutouts}.nc", **config['atlite'])
         output: "resources/natura.tiff"
         log: "logs/build_natura_raster.log"
+        conda: "envs/environment.yaml"
         script: "scripts/build_natura_raster.py"
 
 
@@ -228,6 +216,7 @@ rule build_renewable_profiles:
     output: profile="resources/profile_{technology}_{year}.nc",
     log: "logs/build_renewable_profile_{technology}_{year}.log"
     benchmark: "benchmarks/build_renewable_profiles_{technology}_{year}"
+    conda: "envs/environment.yaml"
     threads: ATLITE_NPROCESSES
     resources: mem=ATLITE_NPROCESSES * 5000
     script: "scripts/build_renewable_profiles.py"
@@ -250,6 +239,7 @@ if 'hydro' in config['renewable'].keys():
             cutouts=hydro_profiles_cutouts
         output: 'resources/profile_hydro_{year}.nc'
         log: "logs/build_hydro_profile_{year}.log"
+        conda: "envs/environment.yaml"
         resources: mem=5000
         script: 'scripts/build_hydro_profile.py'
 
@@ -269,6 +259,7 @@ rule add_electricity:
     output: "networks/elec_{year}.nc"
     log: "logs/add_electricity_{year}.log"
     benchmark: "benchmarks/add_electricity_{year}"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=3000
     script: "scripts/add_electricity.py"
@@ -291,6 +282,7 @@ rule simplify_network:
         connection_costs='resources/connection_costs_{year}_s{simpl}.csv'
     log: "logs/simplify_network/elec_{year}_s{simpl}.log"
     benchmark: "benchmarks/simplify_network/elec_{year}_s{simpl}"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=4000
     script: "scripts/simplify_network.py"
@@ -313,6 +305,7 @@ rule cluster_network:
         linemap="resources/linemap_elec_{year}_s{simpl}_{clusters}.csv"
     log: "logs/cluster_network/elec_{year}_s{simpl}_{clusters}.log"
     benchmark: "benchmarks/cluster_network/elec_{year}_s{simpl}_{clusters}"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=3000
     script: "scripts/cluster_network.py"
@@ -325,6 +318,7 @@ rule add_extra_components:
     output: 'networks/elec_{year}_s{simpl}_{clusters}_ec.nc'
     log: "logs/add_extra_components/elec_{year}_s{simpl}_{clusters}.log"
     benchmark: "benchmarks/add_extra_components/elec_{year}_s{simpl}_{clusters}_ec"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=3000
     script: "scripts/add_extra_components.py"
@@ -335,6 +329,7 @@ rule prepare_network:
     output: 'networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc'
     log: "logs/prepare_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.log"
     benchmark: "benchmarks/prepare_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+    conda: "envs/environment.yaml"
     threads: 1
     resources: mem=4000
     script: "scripts/prepare_network.py"
@@ -366,6 +361,7 @@ rule solve_network:
         python="logs/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
         memory="logs/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log"
     benchmark: "benchmarks/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+    conda: "envs/environment.yaml"
     threads: 4
     resources: mem=memory
     shadow: "shallow"
@@ -382,6 +378,7 @@ rule solve_operations_network:
         python="logs/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_python.log",
         memory="logs/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_memory.log"
     benchmark: "benchmarks/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+    conda: "envs/environment.yaml"
     threads: 4
     resources: mem=(lambda w: 5000 + 372 * int(w.clusters))
     shadow: "shallow"
@@ -396,6 +393,7 @@ rule plot_network:
         only_map="results/plots/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}.{ext}",
         ext="results/plots/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_ext.{ext}"
     log: "logs/plot_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_{ext}.log"
+    conda: "envs/environment.yaml"
     script: "scripts/plot_network.py"
 
 
@@ -418,6 +416,7 @@ rule make_summary:
     input: input_make_summary
     output: directory("results/summaries/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}")
     log: "logs/make_summary/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.log",
+    conda: "envs/environment.yaml"
     script: "scripts/make_summary.py"
 
 
@@ -425,6 +424,7 @@ rule plot_summary:
     input: "results/summaries/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}"
     output: "results/plots/summary_{summary}_elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.{ext}"
     log: "logs/plot_summary/{summary}_elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}_{ext}.log"
+    conda: "envs/environment.yaml"
     script: "scripts/plot_summary.py"
 
 
@@ -438,5 +438,6 @@ rule plot_p_nom_max:
     input: input_plot_p_nom_max
     output: "results/plots/elec_{year}_s{simpl}_cum_p_nom_max_{clusts}_{techs}_{country}.{ext}"
     log: "logs/plot_p_nom_max/elec_{year}_s{simpl}_{clusts}_{techs}_{country}_{ext}.log"
+    conda: "envs/environment.yaml"
     script: "scripts/plot_p_nom_max.py"
 
