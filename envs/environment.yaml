@@ -6,6 +6,7 @@ name: pypsa-eur
 channels:
   - conda-forge
   - bioconda
+  - http://conda.anaconda.org/gurobi
 dependencies:
   - python>=3.8
   - pip
@@ -38,6 +39,7 @@ dependencies:
   - matplotlib
   - proj
   - fiona <= 1.18.20  # Till issue https://github.com/Toblerity/Fiona/issues/1085 is not solved
+  - gurobi
 
   # Keep in conda environment when calling ipython
   - ipython
