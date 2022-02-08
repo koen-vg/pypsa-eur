@@ -357,7 +357,7 @@ def aggregate_to_substations(n, buses_i=None):
     return clustering.network, busmap
 
 
-def cluster(n, n_clusters, config):
+def cluster(n, n_constant, n_clusters, config):
     logger.info(f"Clustering to {n_clusters} buses")
 
     focus_weights = config.get('focus_weights', None)
@@ -374,7 +374,7 @@ def cluster(n, n_clusters, config):
     potential_mode = (consense(pd.Series([config['renewable'][tech]['potential']
                                             for tech in renewable_carriers]))
                         if len(renewable_carriers) > 0 else 'conservative')
-    clustering = clustering_for_n_clusters(n, n_clusters, custom_busmap=False, potential_mode=potential_mode,
+    clustering = clustering_for_n_clusters(n, n_constant, n_clusters, custom_busmap=False, potential_mode=potential_mode,
                                            solver_name=config['solving']['solver']['name'],
                                            focus_weights=focus_weights)
 
@@ -388,16 +388,19 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)
-
+    n_constant = pypsa.Network(snakemake.input.network_constant)
+    n_constant,_ = simplify_network_to_380(n_constant)
     n, trafo_map = simplify_network_to_380(n)
 
     Nyears = len(parse_year_wildcard(snakemake.wildcards.year))
 
     technology_costs = load_costs(snakemake.input.tech_costs, snakemake.config['costs'], snakemake.config['electricity'], Nyears)
 
+    n_constant,_ = simplify_links(n_constant, technology_costs, snakemake.config, snakemake.output)
     n, simplify_links_map = simplify_links(n, technology_costs, snakemake.config, snakemake.output)
 
     n, stub_map = remove_stubs(n, technology_costs, snakemake.config, snakemake.output)
+    n_constant,_ = remove_stubs(n_constant, technology_costs, snakemake.config, snakemake.output)
 
     busmaps = [trafo_map, simplify_links_map, stub_map]
 
@@ -406,7 +409,7 @@ if __name__ == "__main__":
         busmaps.append(substation_map)
 
     if snakemake.wildcards.simpl:
-        n, cluster_map = cluster(n, int(snakemake.wildcards.simpl), snakemake.config)
+        n, cluster_map = cluster(n, n_constant, int(snakemake.wildcards.simpl), snakemake.config)
         busmaps.append(cluster_map)
 
     # some entries in n.buses are not updated in previous functions, therefore can be wrong. as they are not needed
