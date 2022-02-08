@@ -360,7 +360,7 @@ def aggregate_to_substations(n, buses_i=None):
     return clustering.network, busmap
 
 
-def cluster(n, n_clusters):
+def cluster(n, n_constant, n_clusters):
     logger.info(f"Clustering to {n_clusters} buses")
 
     focus_weights = snakemake.config.get('focus_weights', None)
@@ -377,7 +377,7 @@ def cluster(n, n_clusters):
     potential_mode = (consense(pd.Series([snakemake.config['renewable'][tech]['potential']
                                             for tech in renewable_carriers]))
                         if len(renewable_carriers) > 0 else 'conservative')
-    clustering = clustering_for_n_clusters(n, n_clusters, custom_busmap=False, potential_mode=potential_mode,
+    clustering = clustering_for_n_clusters(n, n_constant, n_clusters, custom_busmap=False, potential_mode=potential_mode,
                                            solver_name=snakemake.config['solving']['solver']['name'],
                                            focus_weights=focus_weights)
 
@@ -391,6 +391,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)
+    n_constant = pypsa.Network(snakemake.input.network_constant)
 
     n, trafo_map = simplify_network_to_380(n)
 
@@ -405,7 +406,7 @@ if __name__ == "__main__":
         busmaps.append(substation_map)
 
     if snakemake.wildcards.simpl:
-        n, cluster_map = cluster(n, int(snakemake.wildcards.simpl))
+        n, cluster_map = cluster(n, n_constant, int(snakemake.wildcards.simpl))
         busmaps.append(cluster_map)
 
     # some entries in n.buses are not updated in previous functions, therefore can be wrong. as they are not needed

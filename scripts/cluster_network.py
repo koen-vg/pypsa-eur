@@ -257,7 +257,7 @@ def busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights=None, algori
             .apply(busmap_for_country).squeeze().rename('busmap'))
 
 
-def clustering_for_n_clusters(n, n_clusters, custom_busmap=False, aggregate_carriers=None,
+def clustering_for_n_clusters(n, n_constant, custom_busmap=False, aggregate_carriers=None,
                               line_length_factor=1.25, potential_mode='simple', solver_name="cbc",
                               algorithm="kmeans", extended_link_costs=0, focus_weights=None):
 
@@ -273,7 +273,7 @@ def clustering_for_n_clusters(n, n_clusters, custom_busmap=False, aggregate_carr
         busmap.index = busmap.index.astype(str)
         logger.info(f"Imported custom busmap from {snakemake.input.custom_busmap}")
     else:
-        busmap = busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights, algorithm)
+        busmap = busmap_for_n_clusters(n_constant, n_clusters, solver_name, focus_weights, algorithm)
 
     clustering = get_clustering_from_busmap(
         n, busmap,
@@ -336,6 +336,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)
+    n_constant = pypsa.Network(snakemake.input.network_constant)
 
     focus_weights = snakemake.config.get('focus_weights', None)
 
@@ -373,7 +374,7 @@ if __name__ == "__main__":
         potential_mode = consense(pd.Series([snakemake.config['renewable'][tech]['potential']
                                              for tech in renewable_carriers]))
         custom_busmap = snakemake.config["enable"].get("custom_busmap", False)
-        clustering = clustering_for_n_clusters(n, n_clusters, custom_busmap, aggregate_carriers,
+        clustering = clustering_for_n_clusters(n, n_constant, n_clusters, custom_busmap, aggregate_carriers,
                                                line_length_factor=line_length_factor,
                                                potential_mode=potential_mode,
                                                solver_name=snakemake.config['solving']['solver']['name'],
