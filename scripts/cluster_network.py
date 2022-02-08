@@ -257,7 +257,7 @@ def busmap_for_n_clusters(n, n_clusters, solver_name, focus_weights=None, algori
             .apply(busmap_for_country).squeeze().rename('busmap'))
 
 
-def clustering_for_n_clusters(n, n_constant, custom_busmap=False, aggregate_carriers=None,
+def clustering_for_n_clusters(n, n_constant, n_clusters, custom_busmap=False, aggregate_carriers=None,
                               line_length_factor=1.25, potential_mode='simple', solver_name="cbc",
                               algorithm="kmeans", extended_link_costs=0, focus_weights=None):
 
