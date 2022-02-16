@@ -389,16 +389,18 @@ if __name__ == "__main__":
 
     n = pypsa.Network(snakemake.input.network)
     n_constant = pypsa.Network(snakemake.input.network_constant)
-
+    n_constant,_ = simplify_network_to_380(n_constant)
     n, trafo_map = simplify_network_to_380(n)
 
     Nyears = len(parse_year_wildcard(snakemake.wildcards.year))
 
     technology_costs = load_costs(snakemake.input.tech_costs, snakemake.config['costs'], snakemake.config['electricity'], Nyears)
 
+    n_constant,_ = simplify_links(n_constant, technology_costs, snakemake.config, snakemake.output)
     n, simplify_links_map = simplify_links(n, technology_costs, snakemake.config, snakemake.output)
 
     n, stub_map = remove_stubs(n, technology_costs, snakemake.config, snakemake.output)
+    n_constant,_ = remove_stubs(n_constant, technology_costs, snakemake.config, snakemake.output)
 
     busmaps = [trafo_map, simplify_links_map, stub_map]
 
