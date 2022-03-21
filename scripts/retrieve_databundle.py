@@ -47,7 +47,10 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('retrieve_databundle')
         rootpath = '..'
     else:
-        rootpath = '.'
+        # Make sure to make extract the output to the directory
+        # specified by snakemake, in case pypsa-eur is run as a
+        # module.
+        rootpath = Path(snakemake.output[0]).resolve().parent.parent.parent
     configure_logging(snakemake) # TODO Make logging compatible with progressbar (see PR #102)
 
     if snakemake.config['tutorial']:
