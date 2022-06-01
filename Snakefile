@@ -259,7 +259,7 @@ rule add_electricity:
 rule simplify_network:
     input:
         network='networks/elec_{year}.nc',
-        network_constant='networks/elec_2019.nc',  # FIXME: don't hardcode the year 2019, make config?
+        network_constant=f"networks/elec_{config['net_clustering_year']}.nc",
         tech_costs=COSTS,
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
@@ -283,7 +283,7 @@ rule simplify_network:
 rule cluster_network:
     input:
         network='networks/elec_{year}_s{simpl}.nc',
-        network_constant='networks/elec_2019_s{simpl}.nc',  # FIXME: don't hardcode the year 2019, make config?
+        network_constant='networks/elec_' + str(config['net_clustering_year']) + '_s{simpl}.nc',
         regions_onshore="resources/regions_onshore_elec_{year}_s{simpl}.geojson",
         regions_offshore="resources/regions_offshore_elec_{year}_s{simpl}.geojson",
         busmap=ancient('resources/busmap_elec_{year}_s{simpl}.csv'),
