@@ -192,7 +192,12 @@ if config['enable'].get('retrieve_natura_raster', True):
 
 
 def renewable_profiles_cutouts(wildcards):
+    # Parse the set of years over which the required network is defined.
     years = parse_year_wildcard(wildcards.year)
+    # In case the year boundary is not the 1st of January, we also
+    # need the cutout for year y+1 for each y in `years`.
+    if config.get('year_boundary', '01-01') != '01-01':
+        years = set(years + [y + 1 for y in years])
     return [
         f"cutouts/{config['renewable'][wildcards.technology]['cutout']}_{y}.nc"
         for y in years
@@ -229,6 +234,10 @@ ruleorder: build_hydro_profile > build_renewable_profiles
 def hydro_profiles_cutouts(wildcards):
     if "hydro" in config["renewable"]:
         years = parse_year_wildcard(wildcards.year)
+        # In case the year boundary is not the 1st of January, we also
+        # need the cutout for year y+1 for each y in `years`.
+        if config.get('year_boundary', '01-01') != '01-01':
+            years = set(years + [y + 1 for y in years])
         return [
             f"cutouts/{config['renewable']['hydro']['cutout']}_{y}.nc"
             for y in years
@@ -272,7 +281,7 @@ rule add_electricity:
 rule simplify_network:
     input:
         network='networks/elec_{year}.nc',
-        network_constant='networks/elec_2020.nc',  # FIXME: don't hardcode the year 2020, make config?
+        network_constant='networks/elec_2019.nc',  # FIXME: don't hardcode the year 2019, make config?
         tech_costs=COSTS,
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
@@ -296,7 +305,7 @@ rule simplify_network:
 rule cluster_network:
     input:
         network='networks/elec_{year}_s{simpl}.nc',
-        network_constant='networks/elec_2020_s{simpl}.nc',  # FIXME: don't hardcode the year 2020, make config?
+        network_constant='networks/elec_2019_s{simpl}.nc',  # FIXME: don't hardcode the year 2019, make config?
         regions_onshore="resources/regions_onshore_elec_{year}_s{simpl}.geojson",
         regions_offshore="resources/regions_offshore_elec_{year}_s{simpl}.geojson",
         busmap=ancient('resources/busmap_elec_{year}_s{simpl}.csv'),

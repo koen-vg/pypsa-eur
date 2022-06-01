@@ -561,13 +561,23 @@ def base_network(eg_buses, eg_converters, eg_transformers, eg_lines, eg_links,
     n.name = 'PyPSA-Eur'
 
     # Set the time period over which to run the model. The time period
-    # is a set of years determined by the {year} wildcard. The years
-    # not not form a contiguous range.
+    # is defined by a set of years (specified by
+    # `snakemake.wildcards.years`) and a year-boundary parameter
+    # (snakemake.config.year_boundary). Specifically, the time period
+    # for the network is constructed in two steps:
+    # 1. A set of years (not necessarily contiguous) is extracted from
+    #    the `years` wildcard.
+    # 2. For each year y, a year-long range of hourly points in time
+    #    is constructed, starting in year y on the date set by
+    #    `year_boundary` ('01-01' by default.)
+    # The resulting date ranges are concatenated and used as the
+    # network snapshots.
     years = parse_year_wildcard(year_spec)
+    boundary = config.get('year_boundary', '01-01')
     year_ranges = [
         pd.date_range(
-            f"{y}-01-01",
-            end=f"{y + 1}-01-01",
+            f"{y}-{boundary}",
+            end=f"{y + 1}-{boundary}",
             freq="h",
             closed="left",
         )
