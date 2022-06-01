@@ -248,7 +248,7 @@ def hydro_profiles_cutouts(wildcards):
 rule build_hydro_profile:
     input:
         country_shapes='resources/country_shapes.geojson',
-        eia_hydro_generation='data/bundle/EIA_hydro_generation_1980_2020.csv',
+        eia_hydro_generation='data/bundle/EIA_scaled_hydro_1980_2020.csv',
         cutouts=hydro_profiles_cutouts
     output: 'resources/profile_hydro_{year}.nc'
     log: "logs/build_hydro_profile_{year}.log"

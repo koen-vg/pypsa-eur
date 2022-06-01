@@ -72,7 +72,7 @@ logger = logging.getLogger(__name__)
 
 def add_co2limit(n, co2limit, Nyears=1.):
 
-    limit = annual_emissions * Nyears
+    limit = co2limit * Nyears
 
     logging.info(f"Setting a total Co2 limit of {limit:.3f}")
 
