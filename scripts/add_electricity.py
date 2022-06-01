@@ -553,6 +553,32 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.base_network)
+
+    # Set the time period over which to run the model. The time period
+    # is defined by a set of years (specified by
+    # `snakemake.wildcards.years`) and a year-boundary parameter
+    # (snakemake.config.year_boundary). Specifically, the time period
+    # for the network is constructed in two steps:
+    # 1. A set of years (not necessarily contiguous) is extracted from
+    #    the `years` wildcard.
+    # 2. For each year y, a year-long range of hourly points in time
+    #    is constructed, starting in year y on the date set by
+    #    `year_boundary` ('01-01' by default.)
+    # The resulting date ranges are concatenated and used as the
+    # network snapshots.
+    years = parse_year_wildcard(snakemake.wildcards.year)
+    boundary = snakemake.config.get('year_boundary', '01-01')
+    year_ranges = [
+        pd.date_range(
+            f"{y}-{boundary}",
+            end=f"{y + 1}-{boundary}",
+            freq="h",
+            closed="left",
+        )
+        for y in years
+    ]
+    n.set_snapshots(year_ranges[0].union_many(year_ranges[1:]))
+
     Nyears = len(parse_year_wildcard(snakemake.wildcards.year))
 
     costs = load_costs(snakemake.input.tech_costs, snakemake.config['costs'], snakemake.config['electricity'], Nyears)

@@ -73,27 +73,6 @@ rule build_powerplants:
     script: "scripts/build_powerplants.py"
 
 
-rule base_network_constant:
-    input:
-        eg_buses='data/entsoegridkit/buses.csv',
-        eg_lines='data/entsoegridkit/lines.csv',
-        eg_links='data/entsoegridkit/links.csv',
-        eg_converters='data/entsoegridkit/converters.csv',
-        eg_transformers='data/entsoegridkit/transformers.csv',
-        parameter_corrections='data/parameter_corrections.yaml',
-        links_p_nom='data/links_p_nom.csv',
-        links_tyndp='data/links_tyndp.csv',
-        country_shapes='resources/country_shapes.geojson',
-        offshore_shapes='resources/offshore_shapes.geojson',
-        europe_shape='resources/europe_shape.geojson'
-    output: "networks/base.nc"
-    log: "logs/base_network_constant.log"
-    benchmark: "benchmarks/base_network_constant"
-    conda: "envs/environment.yaml"
-    threads: 1
-    resources: mem=500
-    script: "scripts/base_network_constant.py"
-
 rule base_network:
     input:
         eg_buses='data/entsoegridkit/buses.csv',
@@ -107,9 +86,9 @@ rule base_network:
         country_shapes='resources/country_shapes.geojson',
         offshore_shapes='resources/offshore_shapes.geojson',
         europe_shape='resources/europe_shape.geojson'
-    output: "networks/base_{year}.nc"
-    log: "logs/base_network_{year}.log"
-    benchmark: "benchmarks/base_network_{year}"
+    output: "networks/base.nc"
+    log: "logs/base_network.log"
+    benchmark: "benchmarks/base_network"
     conda: "envs/environment.yaml"
     threads: 1
     resources: mem_mb=500
@@ -206,7 +185,6 @@ def renewable_profiles_cutouts(wildcards):
 
 rule build_renewable_profiles:
     input:
-        base_network="networks/base_{year}.nc",
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
         natura="resources/natura.tiff",
         gebco=lambda w: ("data/bundle/GEBCO_2014_2D.nc"
@@ -259,7 +237,7 @@ rule build_hydro_profile:
 
 rule add_electricity:
     input:
-        base_network='networks/base_{year}.nc',
+        base_network='networks/base.nc',
         tech_costs=COSTS,
         regions="resources/regions_onshore.geojson",
         powerplants='resources/powerplants.csv',

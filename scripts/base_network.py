@@ -63,7 +63,7 @@ Description
 """
 
 import logging
-from _helpers import configure_logging, parse_year_wildcard
+from _helpers import configure_logging
 
 import pypsa
 import yaml
@@ -539,7 +539,7 @@ def _adjust_capacities_of_under_construction_branches(n, config):
 
 def base_network(eg_buses, eg_converters, eg_transformers, eg_lines, eg_links,
                  links_p_nom, links_tyndp, europe_shape, country_shapes, offshore_shapes,
-                 parameter_corrections, year_spec, config):
+                 parameter_corrections, config):
 
     buses = _load_buses_from_eg(eg_buses, europe_shape, config['electricity'])
 
@@ -560,30 +560,7 @@ def base_network(eg_buses, eg_converters, eg_transformers, eg_lines, eg_links,
     n = pypsa.Network()
     n.name = 'PyPSA-Eur'
 
-    # Set the time period over which to run the model. The time period
-    # is defined by a set of years (specified by
-    # `snakemake.wildcards.years`) and a year-boundary parameter
-    # (snakemake.config.year_boundary). Specifically, the time period
-    # for the network is constructed in two steps:
-    # 1. A set of years (not necessarily contiguous) is extracted from
-    #    the `years` wildcard.
-    # 2. For each year y, a year-long range of hourly points in time
-    #    is constructed, starting in year y on the date set by
-    #    `year_boundary` ('01-01' by default.)
-    # The resulting date ranges are concatenated and used as the
-    # network snapshots.
-    years = parse_year_wildcard(year_spec)
-    boundary = config.get('year_boundary', '01-01')
-    year_ranges = [
-        pd.date_range(
-            f"{y}-{boundary}",
-            end=f"{y + 1}-{boundary}",
-            freq="h",
-            closed="left",
-        )
-        for y in years
-    ]
-    n.set_snapshots(year_ranges[0].union_many(year_ranges[1:]))
+    n.set_snapshots(pd.date_range(freq='h', **snakemake.config['snapshots']))
 
     n.import_components_from_dataframe(buses, "Bus")
     n.import_components_from_dataframe(lines, "Line")
@@ -615,6 +592,6 @@ if __name__ == "__main__":
 
     n = base_network(snakemake.input.eg_buses, snakemake.input.eg_converters, snakemake.input.eg_transformers, snakemake.input.eg_lines, snakemake.input.eg_links,
                      snakemake.input.links_p_nom, snakemake.input.links_tyndp, snakemake.input.europe_shape, snakemake.input.country_shapes, snakemake.input.offshore_shapes,
-                     snakemake.input.parameter_corrections, snakemake.wildcards.year, snakemake.config)
+                     snakemake.input.parameter_corrections, snakemake.config)
 
     n.export_to_netcdf(snakemake.output[0])
