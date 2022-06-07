@@ -65,19 +65,6 @@ if config['enable'].get('retrieve_databundle', True):
         output: expand('data/bundle/{file}', file=datafiles)
         log: "logs/retrieve_databundle.log"
         script: 'scripts/retrieve_databundle.py'
-
-
-rule retrieve_load_data:
-    input: HTTP.remote("data.open-power-system-data.org/time_series/2019-06-05/time_series_60min_singleindex.csv", keep_local=True, static=True)
-    output: "data/load_raw.csv"
-    run: move(input[0], output[0])
-
-
-rule build_load_data:
-    input: "data/load_raw.csv"
-    output: "resources/load.csv"
-    log: "logs/build_load_data.log"
-    script: 'scripts/build_load_data.py'
     
 
 rule build_powerplants:
@@ -224,7 +211,7 @@ rule add_electricity:
         powerplants='resources/powerplants.csv',
         hydro_capacities='data/bundle/hydro_capacities.csv',
         geth_hydro_capacities='data/geth2015_hydro_capacities.csv',
-        load='resources/load.csv',
+        load='data/europe_demand_artificial_1980-2020.csv',
         nuts3_shapes='resources/nuts3_shapes.geojson',
         **{f"profile_{tech}": f"resources/profile_{tech}.nc"
            for tech in config['renewable']}
