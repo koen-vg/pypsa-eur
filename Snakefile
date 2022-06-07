@@ -266,6 +266,12 @@ rule add_electricity:
     script: "scripts/add_electricity.py"
 
 
+def simplify_memory(wildcards):
+    """Estimate memory requirements of `simplify_network`"""
+    num_years = len(parse_year_wildcard(wildcards.year))
+    return 2000 + num_years * 2000
+
+
 rule simplify_network:
     input:
         network='networks/elec_{year}.nc',
@@ -287,7 +293,7 @@ rule simplify_network:
     benchmark: "benchmarks/simplify_network/elec_{year}_s{simpl}"
     conda: "envs/environment.yaml"
     threads: 1
-    resources: mem_mb=4000
+    resources: mem_mb=simplify_memory
     script: "scripts/simplify_network.py"
 
 
@@ -311,7 +317,7 @@ rule cluster_network:
     benchmark: "benchmarks/cluster_network/elec_{year}_s{simpl}_{clusters}"
     conda: "envs/environment.yaml"
     threads: 1
-    resources: mem_mb=6000
+    resources: mem_mb=simplify_memory
     script: "scripts/cluster_network.py"
 
 
