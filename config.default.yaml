@@ -16,6 +16,7 @@ scenario:
   ll: ['copt']
   clusters: [37, 128, 256, 512, 1024]
   opts: [Co2L-3H]
+  year: ['2013']
 
 countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK']
 
@@ -24,9 +25,7 @@ clustering:
     to_substations: false # network is simplified to nodes with positive or negative power injection (i.e. substations or offwind connections)
 
 snapshots:
-  start: "2013-01-01"
-  end: "2014-01-01"
-  closed: 'left' # end is not inclusive
+  year_boundary: '01-01'
 
 enable:
   prepare_links_p_nom: false

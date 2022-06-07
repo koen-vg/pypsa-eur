@@ -122,7 +122,7 @@ Exemplary unsolved network clustered to 37 nodes:
 """
 
 import logging
-from _helpers import configure_logging, update_p_nom_max
+from _helpers import configure_logging, parse_year_wildcard, update_p_nom_max
 
 import pypsa
 import os
@@ -357,7 +357,7 @@ if __name__ == "__main__":
         clustering = pypsa.networkclustering.Clustering(n, busmap, linemap, linemap, pd.Series(dtype='O'))
     else:
         line_length_factor = snakemake.config['lines']['length_factor']
-        Nyears = n.snapshot_weightings.objective.sum()/8760
+        Nyears = len(parse_year_wildcard(snakemake.wildcards.year))
 
         hvac_overhead_cost = (load_costs(snakemake.input.tech_costs, snakemake.config['costs'], snakemake.config['electricity'], Nyears)
                               .at['HVAC overhead', 'capital_cost'])

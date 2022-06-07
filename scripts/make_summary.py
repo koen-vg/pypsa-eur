@@ -405,6 +405,7 @@ def make_summaries(networks_dict, paths, config, country='all'):
         if country != 'all':
             n = n[n.buses.country == country]
 
+        # Note: not 100% accurate with leap years.
         Nyears = n.snapshot_weightings.objective.sum() / 8760.
         costs = load_costs(paths[0], config['costs'], config['electricity'], Nyears)
         update_transmission_costs(n, costs)
