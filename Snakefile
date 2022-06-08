@@ -193,6 +193,12 @@ def renewable_profiles_cutouts(wildcards):
     ]
 
 
+def build_renewable_profiles_memory(wildcards):
+    """Estimate memory requirements of `build_renewable_profiles`"""
+    num_years = len(parse_year_wildcard(wildcards.year))
+    return ATLITE_NPROCESSES * (4750 + 250 * num_years)
+
+
 rule build_renewable_profiles:
     input:
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
@@ -211,7 +217,7 @@ rule build_renewable_profiles:
     benchmark: "benchmarks/build_renewable_profiles_{technology}_{year}"
     conda: "envs/environment.yaml"
     threads: ATLITE_NPROCESSES
-    resources: mem_mb=ATLITE_NPROCESSES * 5000
+    resources: mem_mb=build_renewable_profiles_memory
     wildcard_constraints: technology="(?!hydro).*" # Any technology other than hydro
     script: "scripts/build_renewable_profiles.py"
 
@@ -242,8 +248,14 @@ rule build_hydro_profile:
     log: "logs/build_hydro_profile_{year}.log"
     benchmark: "benchmarks/build_renewable_profiles_hydro_{year}"
     conda: "envs/environment.yaml"
-    resources: mem_mb=5000
+    resources: mem_mb=build_renewable_profiles_memory
     script: 'scripts/build_hydro_profile.py'
+
+
+def add_electricity_memory(wildcards):
+    """Estimate memory requirements of `add_electricity`"""
+    num_years = len(parse_year_wildcard(wildcards.year))
+    return 3000 + num_years * 2000
 
 
 rule add_electricity:
@@ -263,7 +275,7 @@ rule add_electricity:
     benchmark: "benchmarks/add_electricity_{year}"
     conda: "envs/environment.yaml"
     threads: 1
-    resources: mem_mb=5000
+    resources: mem_mb=add_electricity_memory
     script: "scripts/add_electricity.py"
 
 
