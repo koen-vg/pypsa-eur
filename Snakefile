@@ -240,6 +240,7 @@ rule build_hydro_profile:
         cutouts=hydro_profiles_cutouts,
     output: 'resources/profile_hydro_{year}.nc'
     log: "logs/build_hydro_profile_{year}.log"
+    benchmark: "benchmarks/build_renewable_profiles_hydro_{year}"
     conda: "envs/environment.yaml"
     resources: mem_mb=5000
     script: 'scripts/build_hydro_profile.py'
