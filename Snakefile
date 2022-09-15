@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
+# SPDX-FileCopyrightText: : 2017-2022 The PyPSA-Eur Authors
 #
 # SPDX-License-Identifier: MIT
 
@@ -12,7 +12,11 @@ HTTP = HTTPRemoteProvider()
 
 configfile: "config.yaml"
 
-COSTS="data/costs.csv"
+run_name = config.get("run", {})
+RDIR = run_name["name"] + "/" if run_name.get("name") else ""
+CDIR = RDIR if not run_name.get("shared_cutouts") else "" 
+
+COSTS = "resources/" + RDIR + "costs.csv"
 ATLITE_NPROCESSES = config['atlite'].get('nprocesses', 4)
 
 
@@ -28,31 +32,32 @@ wildcard_constraints:
 
 
 rule cluster_all_networks:
-    input: expand("networks/elec_{year}_s{simpl}_{clusters}.nc", **config['scenario'])
+    input: expand("networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}.nc", **config['scenario'])
 
 
 rule extra_components_all_networks:
-    input: expand("networks/elec_{year}_s{simpl}_{clusters}_ec.nc", **config['scenario'])
+    input: expand("networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec.nc", **config['scenario'])
 
 
 rule prepare_all_networks:
-    input: expand("networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
+    input: expand("networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
 
 
 rule solve_all_networks:
-    input: expand("results/networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
+    input: expand("results/networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc", **config['scenario'])
 
 
 if config['enable'].get('prepare_links_p_nom', False):
     rule prepare_links_p_nom:
         output: 'data/links_p_nom.csv'
-        log: 'logs/prepare_links_p_nom.log'
+        log: "logs/" + RDIR + "prepare_links_p_nom.log"
         threads: 1
         resources: mem_mb=500
         script: 'scripts/prepare_links_p_nom.py'
 
 
-datafiles = ['ch_cantons.csv', 'je-e-21.03.02.xls', 'eez/World_EEZ_v8_2014.shp',
+datafiles = ['ch_cantons.csv', 'je-e-21.03.02.xls', 
+            'eez/World_EEZ_v8_2014.shp', 
             'hydro_capacities.csv', 'naturalearth/ne_10m_admin_0_countries.shp', 
             'NUTS_2013_60M_SH/data/NUTS_RG_60M_2013.shp', 'nama_10r_3popgdp.tsv.gz', 
             'nama_10r_3gdp.tsv.gz', 'corine/g250_clc06_V18_5.tif']
@@ -65,20 +70,20 @@ if not config.get('tutorial', False):
 if config['enable'].get('retrieve_databundle', True):
     rule retrieve_databundle:
         output: expand('data/bundle/{file}', file=datafiles)
-        log: "logs/retrieve_databundle.log"
+        log: "logs/" + RDIR + "retrieve_databundle.log"
         conda: "envs/environment.yaml"
+        resources: mem_mb=1000
         script: 'scripts/retrieve_databundle.py'
-    
 
 rule build_powerplants:
     input:
-        base_network="networks/base.nc",
+        base_network="networks/" + RDIR + "base.nc",
         custom_powerplants="data/custom_powerplants.csv"
-    output: "resources/powerplants.csv"
-    log: "logs/build_powerplants.log"
+    output: "resources/" + RDIR + "powerplants.csv"
     conda: "envs/environment.yaml"
+    log: "logs/" + RDIR + "build_powerplants.log"
     threads: 1
-    resources: mem_mb=500
+    resources: mem_mb=5000
     script: "scripts/build_powerplants.py"
 
 
@@ -92,13 +97,13 @@ rule base_network:
         parameter_corrections='data/parameter_corrections.yaml',
         links_p_nom='data/links_p_nom.csv',
         links_tyndp='data/links_tyndp.csv',
-        country_shapes='resources/country_shapes.geojson',
-        offshore_shapes='resources/offshore_shapes.geojson',
-        europe_shape='resources/europe_shape.geojson'
-    output: "networks/base.nc"
-    log: "logs/base_network.log"
+        country_shapes="resources/" + RDIR + "country_shapes.geojson",
+        offshore_shapes="resources/" + RDIR + "offshore_shapes.geojson",
+        europe_shape="resources/" + RDIR + "europe_shape.geojson"
+    output: "networks/" + RDIR + "base.nc"
+    log: "logs/" + RDIR + "base_network.log"
+    benchmark: "benchmarks/" + RDIR + "base_network"
     conda: "envs/environment.yaml"
-    benchmark: "benchmarks/base_network"
     threads: 1
     resources: mem_mb=500
     script: "scripts/base_network.py"
@@ -114,11 +119,11 @@ rule build_shapes:
         ch_cantons='data/bundle/ch_cantons.csv',
         ch_popgdp='data/bundle/je-e-21.03.02.xls'
     output:
-        country_shapes='resources/country_shapes.geojson',
-        offshore_shapes='resources/offshore_shapes.geojson',
-        europe_shape='resources/europe_shape.geojson',
-        nuts3_shapes='resources/nuts3_shapes.geojson'
-    log: "logs/build_shapes.log"
+        country_shapes="resources/" + RDIR + "country_shapes.geojson",
+        offshore_shapes="resources/" + RDIR + "offshore_shapes.geojson",
+        europe_shape="resources/" + RDIR + "europe_shape.geojson",
+        nuts3_shapes="resources/" + RDIR + "nuts3_shapes.geojson"
+    log: "logs/" + RDIR + "build_shapes.log"
     conda: "envs/environment.yaml"
     threads: 1
     resources: mem_mb=500
@@ -127,13 +132,13 @@ rule build_shapes:
 
 rule build_bus_regions:
     input:
-        country_shapes='resources/country_shapes.geojson',
-        offshore_shapes='resources/offshore_shapes.geojson',
-        base_network="networks/base.nc"
+        country_shapes="resources/" + RDIR + "country_shapes.geojson",
+        offshore_shapes="resources/" + RDIR + "offshore_shapes.geojson",
+        base_network="networks/" + RDIR + "base.nc"
     output:
-        regions_onshore="resources/regions_onshore.geojson",
-        regions_offshore="resources/regions_offshore.geojson"
-    log: "logs/build_bus_regions.log"
+        regions_onshore="resources/" + RDIR + "regions_onshore.geojson",
+        regions_offshore="resources/" + RDIR + "regions_offshore.geojson"
+    log: "logs/" + RDIR + "build_bus_regions.log"
     conda: "envs/environment.yaml"
     threads: 1
     resources: mem_mb=1000
@@ -142,33 +147,45 @@ rule build_bus_regions:
 if config['enable'].get('build_cutout', False):
     rule build_cutout:
         input: 
-            regions_onshore="resources/regions_onshore.geojson",
-            regions_offshore="resources/regions_offshore.geojson"
-        output: "cutouts/{cutout}.nc"
-        log: "logs/build_cutout/{cutout}.log"
-        benchmark: "benchmarks/build_cutout_{cutout}"
+            regions_onshore="resources/" + RDIR + "regions_onshore.geojson",
+            regions_offshore="resources/" + RDIR + "regions_offshore.geojson"
+        output: "cutouts/" + CDIR + "{cutout}.nc"
+        log: "logs/" + CDIR + "build_cutout/{cutout}.log"
+        benchmark: "benchmarks/" + CDIR + "build_cutout_{cutout}"
         conda: "envs/environment.yaml"
         threads: ATLITE_NPROCESSES
         resources: mem_mb=ATLITE_NPROCESSES * 1000
         script: "scripts/build_cutout.py"
 
 
-# For now, the user has to download the required cutouts manually and
-# place them in the "cutouts" directory.
+# TODO: Modify this rule to point to dataset for all ERA5 data.
 
 # if config['enable'].get('retrieve_cutout', True):
 #     rule retrieve_cutout:
 #         input: HTTP.remote("zenodo.org/record/6382570/files/{cutout}.nc", keep_local=True, static=True)
-#         output: "cutouts/{cutout}.nc"
-#         shell: "mv {input} {output}"
+#         output: "cutouts/" + CDIR + "{cutout}.nc"
+#         log: "logs/" + CDIR + "retrieve_cutout_{cutout}.log"
+#         resources: mem_mb=5000
+#         run: move(input[0], output[0])
+
+if config['enable'].get('retrieve_cost_data', True):
+    rule retrieve_cost_data:
+        input: HTTP.remote(f"raw.githubusercontent.com/PyPSA/technology-data/{config['costs']['version']}/outputs/costs_{config['costs']['year']}.csv", keep_local=True)
+        output: COSTS
+        log: "logs/" + RDIR + "retrieve_cost_data.log"
+        resources: mem_mb=5000
+        run:
+            move(input[0], output[0])
 
 if config['enable'].get('build_natura_raster', False):
+    # TODO: This will not work!
     rule build_natura_raster:
         input:
             natura="data/bundle/natura/Natura2000_end2015.shp",
-            cutouts=expand("cutouts/{cutouts}.nc", **config['atlite'])
-        output: "resources/natura.tiff"
-        log: "logs/build_natura_raster.log"
+            cutouts=expand("cutouts/" + CDIR + "{cutouts}.nc", **config['atlite'])
+        output: "resources/" + RDIR + "natura.tiff"
+        resources: mem_mb=5000
+        log: "logs/" + RDIR + "build_natura_raster.log"
         conda: "envs/environment.yaml"
         script: "scripts/build_natura_raster.py"
 
@@ -176,8 +193,30 @@ if config['enable'].get('build_natura_raster', False):
 if config['enable'].get('retrieve_natura_raster', True):
     rule retrieve_natura_raster:
         input: HTTP.remote("zenodo.org/record/4706686/files/natura.tiff", keep_local=True, static=True)
-        output: "resources/natura.tiff"
-        run: move(input[0], output[0])
+        output: "resources/" + RDIR + "natura.tiff"
+        resources: mem_mb=5000
+        run:
+            move(input[0], output[0])
+
+
+rule retrieve_ship_raster:
+    input: HTTP.remote("https://zenodo.org/record/6953563/files/shipdensity_global.zip", keep_local=True, static=True)
+    output: "data/shipdensity_global.zip"
+    resources: mem_mb=5000
+    run:
+        move(input[0], output[0])
+
+
+rule build_ship_raster:
+    input:
+        ship_density="data/shipdensity_global.zip",
+        cutouts="cutouts/" + CDIR + f"europe-era5_{config['net_clustering_year']}.nc",
+    output: "resources/" + RDIR + "shipdensity_raster.nc"
+    log: "logs/" + RDIR + "build_ship_raster.log"
+    resources: mem_mb=5000
+    benchmark: "benchmarks/" + RDIR + "build_ship_raster"
+    conda: "envs/environment.yaml"
+    script: "scripts/build_ship_raster.py"
 
 
 def renewable_profiles_cutouts(wildcards):
@@ -188,7 +227,7 @@ def renewable_profiles_cutouts(wildcards):
     if config['snapshots'].get('year_boundary', '01-01') != '01-01':
         years = set(years + [y + 1 for y in years])
     return [
-        f"cutouts/{config['renewable'][wildcards.technology]['cutout']}_{y}.nc"
+        "cutouts/" + CDIR + f"{config['renewable'][wildcards.technology]['cutout']}_{y}.nc"
         for y in years
     ]
 
@@ -202,19 +241,24 @@ def build_renewable_profiles_memory(wildcards):
 rule build_renewable_profiles:
     input:
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
-        natura="resources/natura.tiff",
+        natura=lambda w: ("resources/" + RDIR + "natura.tiff"
+                          if config["renewable"][w.technology]["natura"]
+                          else []),
         gebco=lambda w: ("data/bundle/GEBCO_2014_2D.nc"
                          if "max_depth" in config["renewable"][w.technology].keys()
                          else []),
-        country_shapes='resources/country_shapes.geojson',
-        offshore_shapes='resources/offshore_shapes.geojson',
-        regions=lambda w: ("resources/regions_onshore.geojson"
+        ship_density= lambda w: ("resources/" + RDIR + "shipdensity_raster.nc"
+                         if "ship_threshold" in config["renewable"][w.technology].keys()
+                         else []),
+        country_shapes="resources/" + RDIR + "country_shapes.geojson",
+        offshore_shapes="resources/" + RDIR + "offshore_shapes.geojson",
+        regions=lambda w: ("resources/" + RDIR + "regions_onshore.geojson"
                                    if w.technology in ('onwind', 'solar')
-                                   else "resources/regions_offshore.geojson"),
+                                   else "resources/" + RDIR + "regions_offshore.geojson"),
         cutouts=renewable_profiles_cutouts
-    output: profile="resources/profile_{technology}_{year}.nc",
-    log: "logs/build_renewable_profile_{technology}_{year}.log"
-    benchmark: "benchmarks/build_renewable_profiles_{technology}_{year}"
+    output: profile="resources/" + RDIR + "profile_{technology}_{year}.nc",
+    log: "logs/" + RDIR + "build_renewable_profile_{technology}_{year}.log"
+    benchmark: "benchmarks/" + RDIR + "build_renewable_profiles_{technology}_{year}"
     conda: "envs/environment.yaml"
     threads: ATLITE_NPROCESSES
     resources: mem_mb=build_renewable_profiles_memory
@@ -233,7 +277,7 @@ def hydro_profiles_cutouts(wildcards):
         if config['snapshots'].get('year_boundary', '01-01') != '01-01':
             years = set(years + [y + 1 for y in years])
         return [
-            f"cutouts/{config['renewable']['hydro']['cutout']}_{y}.nc"
+            "cutouts/" + CDIR + f"{config['renewable']['hydro']['cutout']}_{y}.nc"
             for y in years
         ]
     else:
@@ -241,12 +285,11 @@ def hydro_profiles_cutouts(wildcards):
 
 rule build_hydro_profile:
     input:
-        country_shapes='resources/country_shapes.geojson',
+        country_shapes="resources/" + RDIR + "country_shapes.geojson",
         eia_hydro_generation='data/EIA_scaled_hydro_1980_2020.csv',
         cutouts=hydro_profiles_cutouts,
-    output: 'resources/profile_hydro_{year}.nc'
-    log: "logs/build_hydro_profile_{year}.log"
-    benchmark: "benchmarks/build_renewable_profiles_hydro_{year}"
+    output: "resources/" + RDIR + "profile_hydro_{year}.nc"
+    log: "logs/" + RDIR + "build_hydro_profile_{year}.log"
     conda: "envs/environment.yaml"
     resources: mem_mb=build_renewable_profiles_memory
     script: 'scripts/build_hydro_profile.py'
@@ -260,19 +303,22 @@ def add_electricity_memory(wildcards):
 
 rule add_electricity:
     input:
-        base_network='networks/base.nc',
+        base_network="networks/" + RDIR + "base.nc",
         tech_costs=COSTS,
-        regions="resources/regions_onshore.geojson",
-        powerplants='resources/powerplants.csv',
+        regions="resources/" + RDIR + "regions_onshore.geojson",
+        powerplants="resources/" + RDIR + "powerplants.csv",
         hydro_capacities='data/bundle/hydro_capacities.csv',
         geth_hydro_capacities='data/geth2015_hydro_capacities.csv',
         load='data/europe_demand_artificial_1980-2020.csv',
-        nuts3_shapes='resources/nuts3_shapes.geojson',
-        **{f"profile_{tech}": "resources/profile_" + str(tech) + "_{year}.nc"
-           for tech in config['renewable']}
-    output: "networks/elec_{year}.nc"
-    log: "logs/add_electricity_{year}.log"
-    benchmark: "benchmarks/add_electricity_{year}"
+        nuts3_shapes="resources/" + RDIR + "nuts3_shapes.geojson",
+        **{f"profile_{tech}": "resources/" + RDIR + f"profile_{tech}" + "_{year}.nc"
+           for tech in config['renewable']},
+        **{f"conventional_{carrier}_{attr}": fn 
+           for carrier, d in config.get('conventional', {None: {}}).items() 
+           for attr, fn in d.items() if str(fn).startswith("data/")}, 
+    output: "networks/" + RDIR + "elec_{year}.nc"
+    log: "logs/" + RDIR + "add_electricity_{year}.log"
+    benchmark: "benchmarks/" + RDIR + "add_electricity_{year}"
     conda: "envs/environment.yaml"
     threads: 1
     resources: mem_mb=add_electricity_memory
@@ -287,23 +333,23 @@ def simplify_memory(wildcards):
 
 rule simplify_network:
     input:
-        network='networks/elec_{year}.nc',
-        network_constant=f"networks/elec_{config['net_clustering_year']}.nc",
+        network="networks/" + RDIR + "elec_{year}.nc",
+        network_constant="networks/" + RDIR + f"elec_{config['net_clustering_year']}.nc",
         tech_costs=COSTS,
-        regions_onshore="resources/regions_onshore.geojson",
-        regions_offshore="resources/regions_offshore.geojson"
+        regions_onshore="resources/" + RDIR + "regions_onshore.geojson",
+        regions_offshore="resources/" + RDIR + "regions_offshore.geojson"
     output:
-        network='networks/elec_{year}_s{simpl}.nc',
+        network="networks/" + RDIR + "elec_{year}_s{simpl}.nc",
         # Note that the following output files should actually for
         # equal for all years, but we can't remove the {year} wildcard
         # from the names since that would lead to output filename
         # conflicts between different years.
-        regions_onshore="resources/regions_onshore_elec_{year}_s{simpl}.geojson",
-        regions_offshore="resources/regions_offshore_elec_{year}_s{simpl}.geojson",
-        busmap='resources/busmap_elec_{year}_s{simpl}.csv',
-        connection_costs='resources/connection_costs_{year}_s{simpl}.csv'
-    log: "logs/simplify_network/elec_{year}_s{simpl}.log"
-    benchmark: "benchmarks/simplify_network/elec_{year}_s{simpl}"
+        regions_onshore="resources/" + RDIR + "regions_onshore_elec_{year}_s{simpl}.geojson",
+        regions_offshore="resources/" + RDIR + "regions_offshore_elec_{year}_s{simpl}.geojson",
+        busmap="resources/" + RDIR + "busmap_elec_{year}_s{simpl}.csv",
+        connection_costs="resources/" + RDIR + "connection_costs_{year}_s{simpl}.csv"
+    log: "logs/" + RDIR + "simplify_network/elec_{year}_s{simpl}.log"
+    benchmark: "benchmarks/" + RDIR + "simplify_network/elec_{year}_s{simpl}"
     conda: "envs/environment.yaml"
     threads: 1
     resources: mem_mb=simplify_memory
@@ -312,22 +358,22 @@ rule simplify_network:
 
 rule cluster_network:
     input:
-        network='networks/elec_{year}_s{simpl}.nc',
-        network_constant='networks/elec_' + str(config['net_clustering_year']) + '_s{simpl}.nc',
-        regions_onshore="resources/regions_onshore_elec_{year}_s{simpl}.geojson",
-        regions_offshore="resources/regions_offshore_elec_{year}_s{simpl}.geojson",
-        busmap=ancient('resources/busmap_elec_{year}_s{simpl}.csv'),
+        network="networks/" + RDIR + "elec_{year}_s{simpl}.nc",
+        network_constant="networks/" + RDIR + "elec_" + str(config['net_clustering_year']) + "_s{simpl}.nc",
+        regions_onshore="resources/" + RDIR + "regions_onshore_elec_{year}_s{simpl}.geojson",
+        regions_offshore="resources/" + RDIR + "regions_offshore_elec_{year}_s{simpl}.geojson",
+        busmap=ancient("resources/" + RDIR + "busmap_elec_{year}_s{simpl}.csv"),
         custom_busmap=("data/custom_busmap_elec_s{simpl}_{clusters}.csv"
                        if config["enable"].get("custom_busmap", False) else []),
         tech_costs=COSTS
     output:
-        network='networks/elec_{year}_s{simpl}_{clusters}.nc',
-        regions_onshore="resources/regions_onshore_elec_{year}_s{simpl}_{clusters}.geojson",
-        regions_offshore="resources/regions_offshore_elec_{year}_s{simpl}_{clusters}.geojson",
-        busmap="resources/busmap_elec_{year}_s{simpl}_{clusters}.csv",
-        linemap="resources/linemap_elec_{year}_s{simpl}_{clusters}.csv"
-    log: "logs/cluster_network/elec_{year}_s{simpl}_{clusters}.log"
-    benchmark: "benchmarks/cluster_network/elec_{year}_s{simpl}_{clusters}"
+        network="networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}.nc",
+        regions_onshore="resources/" + RDIR + "regions_onshore_elec_{year}_s{simpl}_{clusters}.geojson",
+        regions_offshore="resources/" + RDIR + "regions_offshore_elec_{year}_s{simpl}_{clusters}.geojson",
+        busmap="resources/" + RDIR + "busmap_elec_{year}_s{simpl}_{clusters}.csv",
+        linemap="resources/" + RDIR + "linemap_elec_{year}_s{simpl}_{clusters}.csv"
+    log: "logs/" + RDIR + "cluster_network/elec_{year}_s{simpl}_{clusters}.log"
+    benchmark: "benchmarks/" + RDIR + "cluster_network/elec_{year}_s{simpl}_{clusters}"
     conda: "envs/environment.yaml"
     threads: 1
     resources: mem_mb=simplify_memory
@@ -336,11 +382,11 @@ rule cluster_network:
 
 rule add_extra_components:
     input:
-        network='networks/elec_{year}_s{simpl}_{clusters}.nc',
+        network="networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}.nc",
         tech_costs=COSTS,
-    output: 'networks/elec_{year}_s{simpl}_{clusters}_ec.nc'
-    log: "logs/add_extra_components/elec_{year}_s{simpl}_{clusters}.log"
-    benchmark: "benchmarks/add_extra_components/elec_{year}_s{simpl}_{clusters}_ec"
+    output: "networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec.nc"
+    log: "logs/" + RDIR + "add_extra_components/elec_{year}_s{simpl}_{clusters}.log"
+    benchmark: "benchmarks/" + RDIR + "add_extra_components/elec_{year}_s{simpl}_{clusters}_ec"
     conda: "envs/environment.yaml"
     threads: 1
     resources: mem_mb=3000
@@ -348,10 +394,10 @@ rule add_extra_components:
 
 
 rule prepare_network:
-    input: 'networks/elec_{year}_s{simpl}_{clusters}_ec.nc', tech_costs=COSTS
-    output: 'networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc'
-    log: "logs/prepare_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.log"
-    benchmark: "benchmarks/prepare_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+    input: "networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec.nc", tech_costs=COSTS,
+    output: "networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+    log: "logs/" + RDIR + "prepare_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.log"
+    benchmark: "benchmarks/" + RDIR + "prepare_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
     conda: "envs/environment.yaml"
     threads: 1
     resources: mem_mb=4000
@@ -379,13 +425,13 @@ def memory(w):
 
 
 rule solve_network:
-    input: "networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-    output: "results/networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+    input: "networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+    output: "results/networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
     log:
-        solver=normpath("logs/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_solver.log"),
-        python="logs/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
-        memory="logs/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log"
-    benchmark: "benchmarks/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+        solver=normpath("logs/" + RDIR + "solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_solver.log"),
+        python="logs/" + RDIR + "solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
+        memory="logs/" + RDIR + "solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log"
+    benchmark: "benchmarks/" + RDIR + "solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
     conda: "envs/environment.yaml"
     threads: 4
     resources: mem_mb=memory
@@ -395,14 +441,14 @@ rule solve_network:
 
 rule solve_operations_network:
     input:
-        unprepared="networks/elec_{year}_s{simpl}_{clusters}_ec.nc",
-        optimized="results/networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-    output: "results/networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op.nc"
+        unprepared="networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec.nc",
+        optimized="results/networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
+    output: "results/networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op.nc"
     log:
-        solver=normpath("logs/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_solver.log"),
-        python="logs/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_python.log",
-        memory="logs/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_memory.log"
-    benchmark: "benchmarks/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+        solver=normpath("logs/" + RDIR + "solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_solver.log"),
+        python="logs/" + RDIR + "solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_python.log",
+        memory="logs/" + RDIR + "solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_memory.log"
+    benchmark: "benchmarks/" + RDIR + "solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
     conda: "envs/environment.yaml"
     threads: 4
     resources: mem_mb=(lambda w: 5000 + 372 * int(w.clusters))
@@ -412,12 +458,12 @@ rule solve_operations_network:
 
 rule plot_network:
     input:
-        network="results/networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
+        network="results/networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
         tech_costs=COSTS
     output:
-        only_map="results/plots/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}.{ext}",
-        ext="results/plots/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_ext.{ext}"
-    log: "logs/plot_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_{ext}.log"
+        only_map="results/plots/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}.{ext}",
+        ext="results/plots/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_ext.{ext}"
+    log: "logs/" + RDIR + "plot_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_{ext}.log"
     conda: "envs/environment.yaml"
     script: "scripts/plot_network.py"
 
@@ -431,7 +477,7 @@ def input_make_summary(w):
     else:
         ll = w.ll
     return ([COSTS] +
-            expand("results/networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
+            expand("results/networks/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
                    ll=ll,
                    **{k: config["scenario"][k] if getattr(w, k) == "all" else getattr(w, k)
                       for k in ["simpl", "clusters", "opts"]}))
@@ -439,30 +485,33 @@ def input_make_summary(w):
 
 rule make_summary:
     input: input_make_summary
-    output: directory("results/summaries/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}")
-    log: "logs/make_summary/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.log",
+    output: directory("results/summaries/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}")
+    log: "logs/" + RDIR + "make_summary/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.log",
+    resources: mem_mb=500
     conda: "envs/environment.yaml"
     script: "scripts/make_summary.py"
 
 
 rule plot_summary:
-    input: "results/summaries/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}"
-    output: "results/plots/summary_{summary}_elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.{ext}"
-    log: "logs/plot_summary/{summary}_elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}_{ext}.log"
+    input: "results/summaries/" + RDIR + "elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}"
+    output: "results/plots/" + RDIR + "summary_{summary}_elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.{ext}"
+    log: "logs/" + RDIR + "plot_summary/{summary}_elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}_{ext}.log"
     conda: "envs/environment.yaml"
+    resources: mem_mb=500
     script: "scripts/plot_summary.py"
 
 
 def input_plot_p_nom_max(w):
-    return [("networks/elec_{year}_s{simpl}{maybe_cluster}.nc"
+    return [("results/networks/" + RDIR + "elec_{year}_s{simpl}{maybe_cluster}.nc"
              .format(maybe_cluster=('' if c == 'full' else ('_' + c)), **w))
             for c in w.clusts.split(",")]
 
 
 rule plot_p_nom_max:
     input: input_plot_p_nom_max
-    output: "results/plots/elec_{year}_s{simpl}_cum_p_nom_max_{clusts}_{techs}_{country}.{ext}"
-    log: "logs/plot_p_nom_max/elec_{year}_s{simpl}_{clusts}_{techs}_{country}_{ext}.log"
+    output: "results/plots/" + RDIR + "elec_{year}_s{simpl}_cum_p_nom_max_{clusts}_{techs}_{country}.{ext}"
+    log: "logs/" + RDIR + "plot_p_nom_max/elec_{year}_s{simpl}_{clusts}_{techs}_{country}_{ext}.log"
     conda: "envs/environment.yaml"
+    resources: mem_mb=500
     script: "scripts/plot_p_nom_max.py"
 

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
+# SPDX-FileCopyrightText: : 2017-2022 The PyPSA-Eur Authors
 #
 # SPDX-License-Identifier: MIT
 
@@ -123,7 +123,7 @@ def plot_map(n, opts, ax=None, attribute='p_nom'):
            link_colors=link_colors_with_alpha,
            bus_sizes=0,
            boundaries=map_boundaries,
-           color_geomap=True, geomap=False,
+           color_geomap=True, geomap=True,
            ax=ax)
     ax.set_aspect('equal')
     ax.axis('off')
@@ -251,7 +251,7 @@ def plot_total_cost_bar(n, opts, ax=None):
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('plot_network', network='elec', simpl='',
+        snakemake = mock_snakemake('plot_network', simpl='',
                                   clusters='5', ll='copt', opts='Co2L-24H',
                                   attr='p_nom', ext="pdf")
     configure_logging(snakemake)

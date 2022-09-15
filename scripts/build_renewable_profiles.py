@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
+# SPDX-FileCopyrightText: : 2017-2022 The PyPSA-Eur Authors
 #
 # SPDX-License-Identifier: MIT
 
@@ -190,6 +190,7 @@ from pypsa.geo import haversine
 from shapely.geometry import LineString
 import time
 from tempfile import NamedTemporaryFile
+from dask.distributed import Client, LocalCluster
 
 from _helpers import configure_logging
 
@@ -204,7 +205,7 @@ if __name__ == '__main__':
     pgb.streams.wrap_stderr()
 
     nprocesses = int(snakemake.threads)
-    noprogress = not snakemake.config['atlite'].get('show_progress', True)
+    noprogress = not snakemake.config['atlite'].get('show_progress', False)
     config = snakemake.config['renewable'][snakemake.wildcards.technology]
     resource = config['resource'] # pv panel config / wind turbine config
     correction_factor = config.get('correction_factor', 1.)
@@ -217,16 +218,24 @@ if __name__ == '__main__':
     if correction_factor != 1.:
         logger.info(f'correction_factor is set as {correction_factor}')
 
+    cluster = LocalCluster(n_workers=nprocesses, threads_per_worker=1)
+    client = Client(cluster, asynchronous=True)
+ 
     # Load the provided cutout files and merge them.
     cutouts = [atlite.Cutout(c) for c in snakemake.input.cutouts]
     xdatas = [c.data for c in cutouts]
     combined_data = xr.concat(xdatas, dim="time", data_vars="minimal")
     cutout = atlite.Cutout(NamedTemporaryFile().name, data=combined_data)
-
-    regions = gpd.read_file(snakemake.input.regions).set_index('name').rename_axis('bus')
+    
+    regions = gpd.read_file(snakemake.input.regions)
+    assert not regions.empty, (f"List of regions in {snakemake.input.regions} is empty, please "
+                               "disable the corresponding renewable technology")
+    # do not pull up, set_index does not work if geo dataframe is empty
+    regions = regions.set_index('name').rename_axis('bus')
     buses = regions.index
 
-    excluder = atlite.ExclusionContainer(crs=3035, res=100)
+    res = config.get("excluder_resolution", 100)
+    excluder = atlite.ExclusionContainer(crs=3035, res=res)
 
     if config['natura']:
         excluder.add_raster(snakemake.input.natura, nodata=0, allow_no_overlap=True)
@@ -239,13 +248,18 @@ if __name__ == '__main__':
         codes = corine["distance_grid_codes"]
         buffer = corine["distance"]
         excluder.add_raster(snakemake.input.corine, codes=codes, buffer=buffer, crs=3035)
+    
+    if "ship_threshold" in config:
+        shipping_threshold=config["ship_threshold"] * 8760 * 6 # approximation because 6 years of data which is hourly collected
+        func = functools.partial(np.less, shipping_threshold)
+        excluder.add_raster(snakemake.input.ship_density, codes=func, crs=4326, allow_no_overlap=True)
 
     if "max_depth" in config:
         # lambda not supported for atlite + multiprocessing
         # use named function np.greater with partially frozen argument instead
         # and exclude areas where: -max_depth > grid cell depth
         func = functools.partial(np.greater,-config['max_depth'])
-        excluder.add_raster(snakemake.input.gebco, codes=func, crs=4236, nodata=-1000)
+        excluder.add_raster(snakemake.input.gebco, codes=func, crs=4326, nodata=-1000)
 
     if 'min_shore_distance' in config:
         buffer = config['min_shore_distance']
@@ -271,7 +285,7 @@ if __name__ == '__main__':
 
     potential = capacity_per_sqkm * availability.sum('bus') * area
     func = getattr(cutout, resource.pop('method'))
-    resource['dask_kwargs'] = {'num_workers': nprocesses}
+    resource['dask_kwargs'] = {"scheduler": client}
     capacity_factor = correction_factor * func(capacity_factor=True, **resource)
     layout = capacity_factor * area * capacity_per_sqkm
     profile, capacities = func(matrix=availability.stack(spatial=['y','x']),
