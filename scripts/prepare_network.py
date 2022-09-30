@@ -13,6 +13,7 @@ Prepare PyPSA network for solving according to :ref:`opts` and :ref:`ll`, such a
 - specifying an expansion limit on the **volume** of transmission expansion, and
 - reducing the **temporal** resolution by averaging over multiple hours
   or segmenting time series into chunks of varying lengths using ``tsam``.
+- varying the **variable costs** (VOM) of different technologies (here gas)
 
 Relevant Settings
 -----------------
@@ -209,6 +210,49 @@ def set_line_nom_max(n, s_nom_max_set=np.inf, p_nom_max_set=np.inf):
     n.lines.s_nom_max.clip(upper=s_nom_max_set, inplace=True)
     n.links.p_nom_max.clip(upper=p_nom_max_set, inplace=True)
 
+
+def vary_technology_costs(
+    n: pypsa.Network, costs: pd.DataFrame, tech: str, factor: float, kind: str
+) -> None:
+    """Modify marginal costs of technology in network by a given factor.
+
+    Specifically, multiply either the VOM or fuel costs (specified by
+    `kind`) of `tech` by `factor` in the PyPSA network `n`.
+    Additionally, the DataFrame `costs` must be given, in the format
+    of `add_electricity.load_costs`.
+
+    As of now, only modifying the marginal cost of gas (OCGT and CCGT)
+    is supported.
+
+    """
+    if tech == "gas":
+        for type in ["OCGT", "CCGT"]:
+            VOM = costs.loc[type]["VOM"]
+            fuel_cost = costs.loc[type]["fuel"]
+            if kind == "VOM":
+                VOM *= factor
+            elif kind == "fuel":
+                fuel_cost * factor
+            else:
+                logging.warning(
+                    "Only changing VOM- or fuel-costs of gas generators is supported."
+                )
+                return
+
+            updated_cost = VOM + fuel_cost / costs.loc[type, "efficiency"]
+            n.generators.loc[
+                n.generators.carrier == type, "marginal_cost"
+            ] = updated_cost
+            logging.info(f"Multiplied {kind} of {tech} by {factor}")
+
+    else:
+        logging.warning(
+            "Changing marginal costs of other technologies than gas are not implemented yet."
+        )
+
+
+
+
 if __name__ == "__main__":
     if 'snakemake' not in globals():
         from _helpers import mock_snakemake
@@ -246,6 +290,15 @@ if __name__ == "__main__":
             else:
                 add_co2limit(n, snakemake.config['electricity']['co2limit'], Nyears)
             break
+
+    for o in opts:
+        m = re.match(r"^([a-z]+)([0-9\.]+)([a-z]+)$", o, re.IGNORECASE)
+        if m:
+            kind = m.group(1)
+            factor = float(m.group(2))
+            tech = m.group(3)
+            vary_technology_costs(n, costs, tech, factor, kind)
+
 
     for o in opts:
         oo = o.split("+")
