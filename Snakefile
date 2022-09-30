@@ -153,14 +153,12 @@ if config['enable'].get('build_cutout', False):
         script: "scripts/build_cutout.py"
 
 
-# For now, the user has to download the required cutouts manually and
-# place them in the "cutouts" directory.
-
-# if config['enable'].get('retrieve_cutout', True):
-#     rule retrieve_cutout:
-#         input: HTTP.remote("zenodo.org/record/6382570/files/{cutout}.nc", keep_local=True, static=True)
-#         output: "cutouts/{cutout}.nc"
-#         shell: "mv {input} {output}"
+# Download cutouts automatically from sigma2.
+if config['enable'].get('retrieve_cutout', True):
+    rule retrieve_cutout:
+        input: HTTP.remote("https://ns9999k.webs.sigma2.no/10.11582_2022.00034/{cutout}.nc", keep_local=True, static=True)
+        output: "cutouts/{cutout}.nc"
+        shell: "mv {input} {output}"
 
 if config['enable'].get('build_natura_raster', False):
     rule build_natura_raster:
@@ -295,7 +293,7 @@ rule simplify_network:
     output:
         network='networks/elec_{year}_s{simpl}.nc',
         # Note that the following output files should actually for
-        # equal for all years, but we can't remove the {year} wildcard
+        # equal for all years, but we cannot remove the {year} wildcard
         # from the names since that would lead to output filename
         # conflicts between different years.
         regions_onshore="resources/regions_onshore_elec_{year}_s{simpl}.geojson",
@@ -423,7 +421,7 @@ rule plot_network:
 
 
 def input_make_summary(w):
-    # It's mildly hacky to include the separate costs input as first entry
+    # It is mildly hacky to include the separate costs input as first entry
     if w.ll.endswith("all"):
         ll = config["scenario"]["ll"]
         if len(w.ll) == 4:
