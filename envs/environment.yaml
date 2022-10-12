@@ -12,7 +12,7 @@ dependencies:
   - pip
 
   - pypsa>=0.18.1,<=0.19.2
-  - atlite>=0.2.6
+  - atlite>=0.2.8
   - dask
 
   # Dependencies of the workflow itself
@@ -25,7 +25,7 @@ dependencies:
   - yaml
   - pytables
   - lxml
-  - powerplantmatching>=0.4.8
+  - powerplantmatching>=0.5.4
   - numpy
   - pandas
   - geopandas
