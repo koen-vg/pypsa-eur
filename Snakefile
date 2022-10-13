@@ -66,7 +66,7 @@ if config['enable'].get('retrieve_databundle', True):
     rule retrieve_databundle:
         output: expand('data/bundle/{file}', file=datafiles)
         log: "logs/retrieve_databundle.log"
-        conda: "envs/environment.yaml"
+        conda: "envs/environment.fixed.yaml"
         script: 'scripts/retrieve_databundle.py'
     
 
@@ -76,7 +76,7 @@ rule build_powerplants:
         custom_powerplants="data/custom_powerplants.csv"
     output: "resources/powerplants.csv"
     log: "logs/build_powerplants.log"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 1
     resources: mem_mb=500
     script: "scripts/build_powerplants.py"
@@ -97,7 +97,7 @@ rule base_network:
         europe_shape='resources/europe_shape.geojson'
     output: "networks/base.nc"
     log: "logs/base_network.log"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     benchmark: "benchmarks/base_network"
     threads: 1
     resources: mem_mb=500
@@ -119,7 +119,7 @@ rule build_shapes:
         europe_shape='resources/europe_shape.geojson',
         nuts3_shapes='resources/nuts3_shapes.geojson'
     log: "logs/build_shapes.log"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 1
     resources: mem_mb=500
     script: "scripts/build_shapes.py"
@@ -134,7 +134,7 @@ rule build_bus_regions:
         regions_onshore="resources/regions_onshore.geojson",
         regions_offshore="resources/regions_offshore.geojson"
     log: "logs/build_bus_regions.log"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 1
     resources: mem_mb=1000
     script: "scripts/build_bus_regions.py"
@@ -147,7 +147,7 @@ if config['enable'].get('build_cutout', False):
         output: "cutouts/{cutout}.nc"
         log: "logs/build_cutout/{cutout}.log"
         benchmark: "benchmarks/build_cutout_{cutout}"
-        conda: "envs/environment.yaml"
+        conda: "envs/environment.fixed.yaml"
         threads: ATLITE_NPROCESSES
         resources: mem_mb=ATLITE_NPROCESSES * 1000
         script: "scripts/build_cutout.py"
@@ -167,7 +167,7 @@ if config['enable'].get('build_natura_raster', False):
             cutouts=expand("cutouts/{cutouts}.nc", **config['atlite'])
         output: "resources/natura.tiff"
         log: "logs/build_natura_raster.log"
-        conda: "envs/environment.yaml"
+        conda: "envs/environment.fixed.yaml"
         script: "scripts/build_natura_raster.py"
 
 
@@ -194,7 +194,7 @@ def renewable_profiles_cutouts(wildcards):
 def build_renewable_profiles_memory(wildcards):
     """Estimate memory requirements of `build_renewable_profiles`"""
     num_years = len(parse_year_wildcard(wildcards.year))
-    return ATLITE_NPROCESSES * (4750 + 250 * num_years)
+    return (3000 + 150 * num_years)
 
 
 rule build_renewable_profiles:
@@ -213,7 +213,7 @@ rule build_renewable_profiles:
     output: profile="resources/profile_{technology}_{year}.nc",
     log: "logs/build_renewable_profile_{technology}_{year}.log"
     benchmark: "benchmarks/build_renewable_profiles_{technology}_{year}"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: ATLITE_NPROCESSES
     resources: mem_mb=build_renewable_profiles_memory
     wildcard_constraints: technology="(?!hydro).*" # Any technology other than hydro
@@ -245,7 +245,7 @@ rule build_hydro_profile:
     output: 'resources/profile_hydro_{year}.nc'
     log: "logs/build_hydro_profile_{year}.log"
     benchmark: "benchmarks/build_renewable_profiles_hydro_{year}"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     resources: mem_mb=build_renewable_profiles_memory
     script: 'scripts/build_hydro_profile.py'
 
@@ -271,7 +271,7 @@ rule add_electricity:
     output: "networks/elec_{year}.nc"
     log: "logs/add_electricity_{year}.log"
     benchmark: "benchmarks/add_electricity_{year}"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 1
     resources: mem_mb=add_electricity_memory
     script: "scripts/add_electricity.py"
@@ -302,7 +302,7 @@ rule simplify_network:
         connection_costs='resources/connection_costs_{year}_s{simpl}.csv'
     log: "logs/simplify_network/elec_{year}_s{simpl}.log"
     benchmark: "benchmarks/simplify_network/elec_{year}_s{simpl}"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 1
     resources: mem_mb=simplify_memory
     script: "scripts/simplify_network.py"
@@ -326,7 +326,7 @@ rule cluster_network:
         linemap="resources/linemap_elec_{year}_s{simpl}_{clusters}.csv"
     log: "logs/cluster_network/elec_{year}_s{simpl}_{clusters}.log"
     benchmark: "benchmarks/cluster_network/elec_{year}_s{simpl}_{clusters}"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 1
     resources: mem_mb=simplify_memory
     script: "scripts/cluster_network.py"
@@ -339,7 +339,7 @@ rule add_extra_components:
     output: 'networks/elec_{year}_s{simpl}_{clusters}_ec.nc'
     log: "logs/add_extra_components/elec_{year}_s{simpl}_{clusters}.log"
     benchmark: "benchmarks/add_extra_components/elec_{year}_s{simpl}_{clusters}_ec"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 1
     resources: mem_mb=3000
     script: "scripts/add_extra_components.py"
@@ -350,7 +350,7 @@ rule prepare_network:
     output: 'networks/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc'
     log: "logs/prepare_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.log"
     benchmark: "benchmarks/prepare_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 1
     resources: mem_mb=4000
     script: "scripts/prepare_network.py"
@@ -384,7 +384,7 @@ rule solve_network:
         python="logs/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
         memory="logs/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log"
     benchmark: "benchmarks/solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 4
     resources: mem_mb=memory
     shadow: "minimal"
@@ -401,7 +401,7 @@ rule solve_operations_network:
         python="logs/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_python.log",
         memory="logs/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_op_memory.log"
     benchmark: "benchmarks/solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     threads: 4
     resources: mem_mb=(lambda w: 5000 + 372 * int(w.clusters))
     shadow: "minimal"
@@ -416,7 +416,7 @@ rule plot_network:
         only_map="results/plots/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}.{ext}",
         ext="results/plots/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_ext.{ext}"
     log: "logs/plot_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_{ext}.log"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     script: "scripts/plot_network.py"
 
 
@@ -439,7 +439,7 @@ rule make_summary:
     input: input_make_summary
     output: directory("results/summaries/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}")
     log: "logs/make_summary/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.log",
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     script: "scripts/make_summary.py"
 
 
@@ -447,7 +447,7 @@ rule plot_summary:
     input: "results/summaries/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}"
     output: "results/plots/summary_{summary}_elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.{ext}"
     log: "logs/plot_summary/{summary}_elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}_{ext}.log"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     script: "scripts/plot_summary.py"
 
 
@@ -461,6 +461,6 @@ rule plot_p_nom_max:
     input: input_plot_p_nom_max
     output: "results/plots/elec_{year}_s{simpl}_cum_p_nom_max_{clusts}_{techs}_{country}.{ext}"
     log: "logs/plot_p_nom_max/elec_{year}_s{simpl}_{clusts}_{techs}_{country}_{ext}.log"
-    conda: "envs/environment.yaml"
+    conda: "envs/environment.fixed.yaml"
     script: "scripts/plot_p_nom_max.py"
 
