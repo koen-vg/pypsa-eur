@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2022 Koen van Greevenbroek & Aleksander Grochowicz
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Introduction
 
 This is a modification to PyPSA-Eur which allows running the model with weather- and demand years from 1980 to 2020.

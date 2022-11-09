@@ -1,25 +1,25 @@
+# -*- coding: utf-8 -*-
 # SPDX-FileCopyrightText: : 2017-2022 The PyPSA-Eur Authors
 #
 # SPDX-License-Identifier: MIT
 
 import sys
-import pandas as pd
 from pathlib import Path
-
 from typing import List
 
+import pandas as pd
 
 REGION_COLS = ["geometry", "name", "x", "y", "country"]
 
 
 def parse_year_wildcard(w: str) -> List[int]:
-    """Parse a {year} wildcard to a list of years.
+    """
+    Parse a {year} wildcard to a list of years.
 
     The wildcard can be of the form `1980+1990+2000-2002`; a set of
     ranges (two years joined by a `-`) and individual years all
     separated by `+`s. The above wildcard is parsed to the list [1980,
     1990, 2000, 2001, 2002].
-
     """
     years = []
     for rng in w.split("+"):
@@ -158,7 +158,7 @@ def pdbcast(v, h):
 
 def load_network_for_plots(fn, tech_costs, config, combine_hydro_ps=True):
     import pypsa
-    from add_electricity import update_transmission_costs, load_costs
+    from add_electricity import load_costs, update_transmission_costs
 
     n = pypsa.Network(fn)
 
@@ -254,7 +254,6 @@ def aggregate_p_curtailed(n):
 
 
 def aggregate_costs(n, flatten=False, opts=None, existing_only=False):
-
     components = dict(
         Link=("p_nom", "p0"),
         Generator=("p_nom", "p"),
@@ -299,6 +298,7 @@ def aggregate_costs(n, flatten=False, opts=None, existing_only=False):
 
 def progress_retrieve(url, file):
     import urllib
+
     from progressbar import ProgressBar
 
     pbar = ProgressBar(0, 100)
@@ -342,11 +342,12 @@ def mock_snakemake(rulename, **wildcards):
         keyword arguments fixing the wildcards. Only necessary if wildcards are
         needed.
     """
-    import snakemake as sm
     import os
+
+    import snakemake as sm
+    from packaging.version import Version, parse
     from pypsa.descriptors import Dict
     from snakemake.script import Snakemake
-    from packaging.version import Version, parse
 
     script_dir = Path(__file__).parent.resolve()
     assert (
