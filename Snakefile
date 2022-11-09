@@ -155,6 +155,8 @@ rule build_powerplants:
         "resources/" + RDIR + "powerplants.csv",
     log:
         "logs/" + RDIR + "build_powerplants.log",
+    conda:
+        "envs/environment.fixed.yaml"
     threads: 1
     resources:
         mem_mb=5000,
@@ -185,7 +187,7 @@ rule base_network:
     resources:
         mem_mb=500,
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/base_network.py"
 
@@ -210,7 +212,7 @@ rule build_shapes:
     resources:
         mem_mb=500,
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_shapes.py"
 
@@ -229,7 +231,7 @@ rule build_bus_regions:
     resources:
         mem_mb=1000,
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_bus_regions.py"
 
@@ -250,7 +252,7 @@ if config["enable"].get("build_cutout", False):
         resources:
             mem_mb=ATLITE_NPROCESSES * 1000,
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/build_cutout.py"
 
@@ -260,7 +262,7 @@ if config["enable"].get("retrieve_cutout", True):
     rule retrieve_cutout:
         input:
             HTTP.remote(
-                "zenodo.org/record/6382570/files/{cutout}.nc",
+                "https://ns9999k.webs.sigma2.no/10.11582_2022.00034/{cutout}.nc",
                 keep_local=True,
                 static=True,
             ),
@@ -305,7 +307,7 @@ if config["enable"].get("build_natura_raster", False):
         log:
             "logs/" + RDIR + "build_natura_raster.log",
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/build_natura_raster.py"
 
@@ -376,7 +378,7 @@ def renewable_profiles_cutouts(wildcards):
 def build_renewable_profiles_memory(wildcards):
     """Estimate memory requirements of `build_renewable_profiles`"""
     num_years = len(parse_year_wildcard(wildcards.year))
-    return ATLITE_NPROCESSES * (4750 + 250 * num_years)
+    return 3000 + 150 * num_years
 
 
 rule build_renewable_profiles:
@@ -417,7 +419,7 @@ rule build_renewable_profiles:
     wildcard_constraints:
         technology="(?!hydro).*",  # Any technology other than hydro
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_renewable_profiles.py"
 
@@ -450,7 +452,7 @@ rule build_hydro_profile:
     log:
         "logs/" + RDIR + "build_hydro_profile_{year}.log",
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     resources:
         mem_mb=build_renewable_profiles_memory,
     script:
@@ -492,6 +494,8 @@ rule add_electricity:
     threads: 1
     resources:
         mem_mb=add_electricity_memory,
+    conda:
+        "envs/environment.fixed.yaml"
     script:
         "scripts/add_electricity.py"
 
@@ -512,7 +516,7 @@ rule simplify_network:
     output:
         network="networks/" + RDIR + "elec_{year}_s{simpl}.nc",
         # Note that the following output files should actually for
-        # equal for all years, but we can't remove the {year} wildcard
+        # equal for all years, but we cannot remove the {year} wildcard
         # from the names since that would lead to output filename
         # conflicts between different years.
         regions_onshore="resources/"
@@ -528,7 +532,7 @@ rule simplify_network:
     benchmark:
         "benchmarks/" + RDIR + "simplify_network/elec_{year}_s{simpl}"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     threads: 1
     resources:
         mem_mb=simplify_memory,
@@ -572,7 +576,7 @@ rule cluster_network:
     benchmark:
         "benchmarks/" + RDIR + "cluster_network/elec_{year}_s{simpl}_{clusters}"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     threads: 1
     resources:
         mem_mb=simplify_memory,
@@ -591,7 +595,7 @@ rule add_extra_components:
     benchmark:
         "benchmarks/" + RDIR + "add_extra_components/elec_{year}_s{simpl}_{clusters}_ec"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     threads: 1
     resources:
         mem_mb=3000,
@@ -616,7 +620,7 @@ rule prepare_network:
             + "prepare_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
         )
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     threads: 1
     resources:
         mem_mb=4000,
@@ -670,7 +674,7 @@ rule solve_network:
             + "solve_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
         )
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     threads: 4
     resources:
         mem_mb=memory,
@@ -709,7 +713,7 @@ rule solve_operations_network:
             + "solve_operations_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
         )
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     threads: 4
     resources:
         mem_mb=(lambda w: 5000 + 372 * int(w.clusters)),
@@ -737,13 +741,13 @@ rule plot_network:
         + RDIR
         + "plot_network/elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_{ext}.log",
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/plot_network.py"
 
 
 def input_make_summary(w):
-    # It's mildly hacky to include the separate costs input as first entry
+    # It is mildly hacky to include the separate costs input as first entry
     if w.ll.endswith("all"):
         ll = config["scenario"]["ll"]
         if len(w.ll) == 4:
@@ -778,7 +782,7 @@ rule make_summary:
     resources:
         mem_mb=500,
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/make_summary.py"
 
@@ -797,7 +801,7 @@ rule plot_summary:
         + RDIR
         + "plot_summary/{summary}_elec_{year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}_{ext}.log",
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     resources:
         mem_mb=500,
     script:
@@ -829,7 +833,7 @@ rule plot_p_nom_max:
         + RDIR
         + "plot_p_nom_max/elec_{year}_s{simpl}_{clusts}_{techs}_{country}_{ext}.log",
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     resources:
         mem_mb=500,
     script:
