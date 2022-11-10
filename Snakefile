@@ -11,12 +11,6 @@ from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
 HTTP = HTTPRemoteProvider()
 
-if not exists("config.yaml"):
-    copyfile("config.default.yaml", "config.yaml")
-
-
-configfile: "config.yaml"
-
 
 run = config.get("run", {})
 RDIR = run["name"] + "/" if run.get("name") else ""
@@ -243,11 +237,11 @@ if config["enable"].get("build_cutout", False):
             regions_onshore="resources/" + RDIR + "regions_onshore.geojson",
             regions_offshore="resources/" + RDIR + "regions_offshore.geojson",
         output:
-            "cutouts/" + CDIR + "{cutout}.nc",
+            "cutouts/" + CDIR + "{cutout}_{year}.nc",
         log:
-            "logs/" + CDIR + "build_cutout/{cutout}.log",
+            "logs/" + CDIR + "build_cutout/{cutout}_{year}.log",
         benchmark:
-            "benchmarks/" + CDIR + "build_cutout_{cutout}"
+            "benchmarks/" + CDIR + "build_cutout_{cutout}_{year}"
         threads: ATLITE_NPROCESSES
         resources:
             mem_mb=ATLITE_NPROCESSES * 1000,
@@ -294,12 +288,26 @@ if config["enable"].get("retrieve_cost_data", True):
             move(input[0], output[0])
 
 
+def raster_cutouts(_):
+    """Return a list of cutout names used to compute rasters."""
+    # Select the clustering year as the "canonical" year from which to
+    # compute rasters.
+    y = config["net_clustering_year"]
+    # Collect the (year-independent) cutout names used to computed
+    # renewable potential.
+    names = [
+        config["renewable"][tech]["cutout"]
+        for tech in config["electricity"]["renewable_carriers"]
+    ]
+    return [f"cutouts/{CDIR}{name}_{y}.nc" for name in names]
+
+
 if config["enable"].get("build_natura_raster", False):
 
     rule build_natura_raster:
         input:
             natura="data/bundle/natura/Natura2000_end2015.shp",
-            cutouts=expand("cutouts/" + CDIR + "{cutouts}.nc", **config["atlite"]),
+            cutouts=raster_cutouts,
         output:
             "resources/" + RDIR + "natura.tiff",
         resources:
@@ -347,7 +355,7 @@ rule retrieve_ship_raster:
 rule build_ship_raster:
     input:
         ship_density="data/shipdensity_global.zip",
-        cutouts=expand("cutouts/" + CDIR + "{cutouts}.nc", **config["atlite"]),
+        cutouts=raster_cutouts,
     output:
         "resources/" + RDIR + "shipdensity_raster.nc",
     log:
@@ -356,6 +364,8 @@ rule build_ship_raster:
         mem_mb=5000,
     benchmark:
         "benchmarks/" + RDIR + "build_ship_raster"
+    conda:
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_ship_raster.py"
 
@@ -406,7 +416,7 @@ rule build_renewable_profiles:
             if w.technology in ("onwind", "solar")
             else "resources/" + RDIR + "regions_offshore.geojson"
         ),
-        cutout=renewable_profiles_cutouts,
+        cutouts=renewable_profiles_cutouts,
     output:
         profile="resources/" + RDIR + "profile_{technology}_{year}.nc",
     log:
@@ -488,9 +498,9 @@ rule add_electricity:
     output:
         "networks/" + RDIR + "elec_{year}.nc",
     log:
-        "logs/" + RDIR + "add_electricity.log",
+        "logs/" + RDIR + "add_electricity_{year}.log",
     benchmark:
-        "benchmarks/" + RDIR + "add_electricity"
+        "benchmarks/" + RDIR + "add_electricity_{year}"
     threads: 1
     resources:
         mem_mb=add_electricity_memory,

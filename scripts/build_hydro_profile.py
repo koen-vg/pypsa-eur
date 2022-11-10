@@ -151,9 +151,7 @@ if __name__ == "__main__":
     country_shapes.index.name = "countries"
 
     fn = snakemake.input.eia_hydro_generation
-    eia_stats = get_eia_annual_hydro_generation(fn, countries).reindex(
-        columns=countries
-    )
+    eia_stats = vhydro.get_eia_annual_hydro_generation(fn).reindex(columns=countries)
 
     inflow = cutout.runoff(
         shapes=country_shapes,

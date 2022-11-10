@@ -108,10 +108,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     cutout_params = snakemake.config["atlite"]["cutouts"][snakemake.wildcards.cutout]
-
-    snapshots = pd.date_range(freq="h", **snakemake.config["snapshots"])
-    time = [snapshots[0], snapshots[-1]]
-    cutout_params["time"] = slice(*cutout_params.get("time", time))
+    cutout_params["time"] = slice(snakemake.wildcards.year, snakemake.wildcards.year)
 
     if {"x", "y", "bounds"}.isdisjoint(cutout_params):
         # Determine the bounds from bus regions with a buffer of two grid cells

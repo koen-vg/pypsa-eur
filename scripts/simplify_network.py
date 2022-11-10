@@ -95,7 +95,7 @@ import scipy as sp
 from _helpers import (
     configure_logging,
     get_aggregation_strategies,
-    parse_year_wildcards,
+    parse_year_wildcard,
     update_p_nom_max,
 )
 from add_electricity import load_costs
@@ -558,7 +558,7 @@ if __name__ == "__main__":
         snakemake.output,
         aggregation_strategies=aggregation_strategies,
     )
-    (n_constant,) = remove_stubs(
+    n_constant, _ = remove_stubs(
         n_constant,
         technology_costs,
         snakemake.config,

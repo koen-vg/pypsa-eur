@@ -136,7 +136,7 @@ import seaborn as sns
 from _helpers import (
     configure_logging,
     get_aggregation_strategies,
-    parse_year_wildcards,
+    parse_year_wildcard,
     update_p_nom_max,
 )
 from pypsa.networkclustering import (
