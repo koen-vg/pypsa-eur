@@ -106,7 +106,7 @@ if config["enable"].get("retrieve_databundle", True):
         resources:
             mem_mb=1000,
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/retrieve_databundle.py"
 
@@ -136,7 +136,7 @@ rule build_load_data:
     resources:
         mem_mb=5000,
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_load_data.py"
 
@@ -295,10 +295,12 @@ def raster_cutouts(_):
     y = config["net_clustering_year"]
     # Collect the (year-independent) cutout names used to computed
     # renewable potential.
-    names = [
-        config["renewable"][tech]["cutout"]
-        for tech in config["electricity"]["renewable_carriers"]
-    ]
+    names = set(
+        [
+            config["renewable"][tech]["cutout"]
+            for tech in config["electricity"]["renewable_carriers"]
+        ]
+    )
     return [f"cutouts/{CDIR}{name}_{y}.nc" for name in names]
 
 
@@ -393,6 +395,7 @@ def build_renewable_profiles_memory(wildcards):
 
 rule build_renewable_profiles:
     input:
+        base_network="networks/" + RDIR + "base.nc",
         corine="data/bundle/corine/g250_clc06_V18_5.tif",
         natura=lambda w: (
             "resources/" + RDIR + "natura.tiff"
