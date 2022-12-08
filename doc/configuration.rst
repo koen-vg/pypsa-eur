@@ -1,5 +1,5 @@
 ..
-  SPDX-FileCopyrightText: 2019-2020 The PyPSA-Eur Authors
+  SPDX-FileCopyrightText: 2019-2022 The PyPSA-Eur Authors
 
   SPDX-License-Identifier: CC-BY-4.0
 
@@ -28,12 +28,23 @@ Top-level configuration
 
 .. _scenario:
 
-``scenario``
-============
+``run``
+=======
 
 It is common conduct to analyse energy system optimisation models for **multiple scenarios** for a variety of reasons,
 e.g. assessing their sensitivity towards changing the temporal and/or geographical resolution or investigating how
 investment changes as more ambitious greenhouse-gas emission reduction targets are applied.
+
+The ``run`` section is used for running and storing scenarios with different configurations which are not covered by :ref:`wildcards`. It determines the path at which resources, networks and results are stored. Therefore the user can run different configurations within the same directory. If a run with a non-empty name should use cutouts shared across runs, set ``shared_cutouts`` to `true`.
+
+.. literalinclude:: ../config.default.yaml
+   :language: yaml
+   :start-at: run:
+   :end-before: scenario:
+
+
+``scenario``
+============
 
 The ``scenario`` section is an extraordinary section of the config file
 that is strongly connected to the :ref:`wildcards` and is designed to
@@ -183,7 +194,7 @@ Define and specify the ``atlite.Cutout`` used for calculating renewable potentia
 ``conventional``
 =============
 
-Define additional generator attribute for conventional carrier types. If a scalar value is given it is applied to all generators. However if a string starting with "data/" is given, the value is interpreted as a path to a csv file with country specific values. Then, the values are read in and applied to all generators of the given carrier in the given country. Note that the value(s) overwrite the existing values in the corresponding section of the ``generators`` dataframe.   
+Define additional generator attribute for conventional carrier types. If a scalar value is given it is applied to all generators. However if a string starting with "data/" is given, the value is interpreted as a path to a csv file with country specific values. Then, the values are read in and applied to all generators of the given carrier in the given country. Note that the value(s) overwrite the existing values in the corresponding section of the ``generators`` dataframe.
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
@@ -241,8 +252,7 @@ Define additional generator attribute for conventional carrier types. If a scala
 
 .. literalinclude:: ../config.default.yaml
    :language: yaml
-   :start-at: load:
-   :end-before: costs:
+   :lines: 212-217
 
 .. csv-table::
    :header-rows: 1
@@ -257,7 +267,7 @@ Define additional generator attribute for conventional carrier types. If a scala
 .. literalinclude:: ../config.default.yaml
    :language: yaml
    :start-after: scaling_factor:
-   :end-before: solving:
+   :end-before: clustering:
 
 .. csv-table::
    :header-rows: 1
@@ -267,6 +277,23 @@ Define additional generator attribute for conventional carrier types. If a scala
 .. note::
     To change cost assumptions in more detail (i.e. other than ``marginal_cost`` and ``capital_cost``), consider modifying cost assumptions directly in ``resources/costs.csv`` as this is not yet supported through the config file.
     You can also build multiple different cost databases. Make a renamed copy of ``resources/costs.csv`` (e.g. ``data/costs-optimistic.csv``) and set the variable ``COSTS=data/costs-optimistic.csv`` in the ``Snakefile``.
+
+
+.. _clustering_cf:
+
+``clustering``
+==============
+
+.. literalinclude:: ../config.default.yaml
+   :language: yaml
+   :start-after:     co2:
+   :end-before: solving:
+
+.. csv-table::
+   :header-rows: 1
+   :widths: 25,7,22,30
+   :file: configtables/clustering.csv
+
 
 .. _solving_cf:
 

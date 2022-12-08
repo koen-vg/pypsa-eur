@@ -1,5 +1,5 @@
 ..
-  SPDX-FileCopyrightText: 2019-2020 The PyPSA-Eur Authors
+  SPDX-FileCopyrightText: 2019-2022 The PyPSA-Eur Authors
 
   SPDX-License-Identifier: CC-BY-4.0
 
@@ -61,14 +61,16 @@ It is also possible to allow less or more carbon-dioxide emissions. Here, we lim
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 35,37
+   :start-at: electricity:
+   :end-before: exentable_carriers:
 
 PyPSA-Eur also includes a database of existing conventional powerplants.
 We can select which types of powerplants we like to be included:
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 35,51
+   :start-at: extendable_carriers:
+   :end-before: max_hours:
 
 To accurately model the temporal and spatial availability of renewables such as wind and solar energy, we rely on historical weather data.
 It is advisable to adapt the required range of coordinates to the selection of countries.
@@ -83,14 +85,21 @@ For example, we may want to use the ERA-5 dataset for solar and not the default 
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 62,105,106
+   :start-at: be-03-2013-era5:
+   :end-at: module:
+
+.. literalinclude:: ../config.tutorial.yaml
+   :language: yaml
+   :start-at: solar:
+   :end-at: cutout:
 
 Finally, it is possible to pick a solver. For instance, this tutorial uses the open-source solvers CBC and Ipopt and does not rely
 on the commercial solvers Gurobi or CPLEX (for which free academic licenses are available).
 
 .. literalinclude:: ../config.tutorial.yaml
    :language: yaml
-   :lines: 187,197,198
+   :start-at: solver:
+   :end-before: plotting:
 
 .. note::
 
@@ -119,13 +128,9 @@ clustered down to 6 buses and every 24 hours aggregated to one snapshot. The com
 
 orders ``snakemake`` to run the script ``solve_network`` that produces the solved network and stores it in ``.../pypsa-eur/results/networks`` with the name ``elec_s_6_ec_lcopt_Co2L-24H.nc``:
 
-.. code::
-
-    rule solve_network:
-        input: "networks/elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-        output: "results/networks/elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"
-        [...]
-        script: "scripts/solve_network.py"
+.. literalinclude:: ../Snakefile
+   :start-at: rule solve_network:
+   :end-before: rule solve_operations_network:
 
 .. until https://github.com/snakemake/snakemake/issues/46 closed
 
@@ -245,7 +250,7 @@ Once the whole worktree is finished, it should show state so in the terminal:
 
 You will notice that many intermediate stages are saved, namely the outputs of each individual ``snakemake`` rule.
 
-You can produce any output file occuring in the ``Snakefile`` by running
+You can produce any output file occurring in the ``Snakefile`` by running
 
 .. code:: bash
 
@@ -271,8 +276,6 @@ the wildcards given in ``scenario`` in the configuration file ``config.yaml`` ar
    :language: yaml
    :start-at: scenario:
    :end-before: countries:
-
-In this example we would not only solve a 6-node model of Germany but also a 2-node model.
 
 How to analyse solved networks?
 ===============================

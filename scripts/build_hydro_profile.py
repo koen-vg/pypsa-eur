@@ -1,6 +1,7 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-# SPDX-FileCopyrightText: : 2017-2020 The PyPSA-Eur Authors
+# SPDX-FileCopyrightText: : 2017-2022 The PyPSA-Eur Authors
 #
 # SPDX-License-Identifier: MIT
 
@@ -60,54 +61,63 @@ Description
 """
 
 import logging
-from _helpers import configure_logging
 
 import atlite
+import country_converter as coco
 import geopandas as gpd
 import pandas as pd
-
+from _helpers import configure_logging
 from numpy.polynomial import Polynomial
 
-import country_converter as coco
 cc = coco.CountryConverter()
 
 
 def get_eia_annual_hydro_generation(fn, countries, capacities=False):
-
     # energy: in billion kWh/a = TWh/a
     # capacity: in billion kW = GW
-    df = pd.read_csv(fn, skiprows=2, index_col=1, na_values=[u' ','--']).iloc[1:, 1:]
+    df = pd.read_csv(fn, skiprows=2, index_col=1, na_values=[" ", "--"]).iloc[1:, 1:]
     df.index = df.index.str.strip()
 
     former_countries = {
         "Former Czechoslovakia": dict(
-            countries=["Czech Republic", "Slovakia"],
-            start=1980, end=1992),
+            countries=["Czech Republic", "Slovakia"], start=1980, end=1992
+        ),
         "Former Serbia and Montenegro": dict(
-            countries=["Serbia", "Montenegro"],
-            start=1992, end=2005),
+            countries=["Serbia", "Montenegro"], start=1992, end=2005
+        ),
         "Former Yugoslavia": dict(
-            countries=["Slovenia", "Croatia", "Bosnia and Herzegovina", "Serbia", "Montenegro", "North Macedonia"],
-            start=1980, end=1991),
+            countries=[
+                "Slovenia",
+                "Croatia",
+                "Bosnia and Herzegovina",
+                "Serbia",
+                "Montenegro",
+                "North Macedonia",
+            ],
+            start=1980,
+            end=1991,
+        ),
     }
 
     for k, v in former_countries.items():
-        period = [str(i) for i in range(v["start"], v["end"]+1)]
-        ratio = df.loc[v['countries']].T.dropna().sum()
+        period = [str(i) for i in range(v["start"], v["end"] + 1)]
+        ratio = df.loc[v["countries"]].T.dropna().sum()
         ratio /= ratio.sum()
-        for country in v['countries']:
+        for country in v["countries"]:
             df.loc[country, period] = df.loc[k, period] * ratio[country]
 
     baltic_states = ["Latvia", "Estonia", "Lithuania"]
-    df.loc[baltic_states] = df.loc[baltic_states].T.fillna(df.loc[baltic_states].mean(axis=1)).T
+    df.loc[baltic_states] = (
+        df.loc[baltic_states].T.fillna(df.loc[baltic_states].mean(axis=1)).T
+    )
 
-    df.loc["Germany"] = df.filter(like='Germany', axis=0).sum()
-    df.loc["Serbia"] += df.loc["Kosovo"].fillna(0.)
-    df = df.loc[~df.index.str.contains('Former')]
+    df.loc["Germany"] = df.filter(like="Germany", axis=0).sum()
+    df.loc["Serbia"] += df.loc["Kosovo"].fillna(0.0)
+    df = df.loc[~df.index.str.contains("Former")]
     df.drop(["Europe", "Germany, West", "Germany, East", "Kosovo"], inplace=True)
 
-    df.index = cc.convert(df.index, to='iso2')
-    df.index.name = 'countries'
+    df.index = cc.convert(df.index, to="iso2")
+    df.index.name = "countries"
 
     # convert to MW of MWh/a
     factor = 1e3 if capacities else 1e6
@@ -122,11 +132,10 @@ def correct_eia_stats_by_capacity(eia_stats, fn, countries, baseyear=2019):
     eia_stats_corrected = eia_stats / ratio
     to_keep = ["AL", "AT", "CH", "DE", "GB", "NL", "RS", "RO", "SK"]
     to_correct = eia_stats_corrected.columns.difference(to_keep)
-    eia_stats.loc[:,to_correct] = eia_stats_corrected.loc[:,to_correct]
+    eia_stats.loc[:, to_correct] = eia_stats_corrected.loc[:, to_correct]
 
 
 def approximate_missing_eia_stats(eia_stats, runoff_fn, countries):
-
     runoff = pd.read_csv(runoff_fn, index_col=0).T[countries]
 
     # fix ES, PT data points
@@ -156,45 +165,51 @@ def approximate_missing_eia_stats(eia_stats, runoff_fn, countries):
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
-    if 'snakemake' not in globals():
+    if "snakemake" not in globals():
         from _helpers import mock_snakemake
-        snakemake = mock_snakemake('build_hydro_profile', weather_year='')
+
+        snakemake = mock_snakemake("build_hydro_profile", weather_year="")
     configure_logging(snakemake)
 
-    config_hydro = snakemake.config['renewable']['hydro']
+    config_hydro = snakemake.config["renewable"]["hydro"]
     cutout = atlite.Cutout(snakemake.input.cutout)
 
-    countries = snakemake.config['countries']
-    country_shapes = (gpd.read_file(snakemake.input.country_shapes)
-                      .set_index('name')['geometry'].reindex(countries))
-    country_shapes.index.name = 'countries'
+    countries = snakemake.config["countries"]
+    country_shapes = (
+        gpd.read_file(snakemake.input.country_shapes)
+        .set_index("name")["geometry"]
+        .reindex(countries)
+    )
+    country_shapes.index.name = "countries"
 
     fn = snakemake.input.eia_hydro_generation
     eia_stats = get_eia_annual_hydro_generation(fn, countries)
 
-    if config_hydro.get('eia_correct_by_capacity'):
+    if config_hydro.get("eia_correct_by_capacity"):
         fn = snakemake.input.eia_hydro_capacity
         correct_eia_stats_by_capacity(eia_stats, fn, countries)
 
-    if config_hydro.get('eia_approximate_missing'):
+    if config_hydro.get("eia_approximate_missing"):
         fn = snakemake.input.era5_runoff
         eia_stats = approximate_missing_eia_stats(eia_stats, fn, countries)
 
     eia_stats.to_csv(snakemake.output.eia_hydro)
 
-    weather_year = snakemake.wildcards.weather_year
-    norm_year = config_hydro.get('eia_norm_year')
+    weather_year = str(snakemake.wildcards.weather_year)
+    norm_year = str(config_hydro.get("eia_norm_year"))
     if norm_year:
         eia_stats.loc[weather_year] = eia_stats.loc[norm_year]
     elif weather_year and weather_year not in eia_stats.index:
         eia_stats.loc[weather_year] = eia_stats.median()
-    
-    inflow = cutout.runoff(shapes=country_shapes,
-                           smooth=True,
-                           lower_threshold_quantile=True,
-                           normalize_using_yearly=eia_stats)
 
-    if 'clip_min_inflow' in config_hydro:
-        inflow = inflow.where(inflow > config_hydro['clip_min_inflow'], 0)
+    inflow = cutout.runoff(
+        shapes=country_shapes,
+        smooth=True,
+        lower_threshold_quantile=True,
+        normalize_using_yearly=eia_stats,
+    )
+
+    if "clip_min_inflow" in config_hydro:
+        inflow = inflow.where(inflow > config_hydro["clip_min_inflow"], 0)
 
     inflow.to_netcdf(snakemake.output.profile)
