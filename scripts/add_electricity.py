@@ -406,7 +406,8 @@ def attach_conventional_generators(
             if f"conventional_{carrier}_{attr}" in conventional_inputs:
                 # Values affecting generators of technology k country-specific
                 # First map generator buses to countries; then map countries to p_max_pu
-                values = pd.read_csv(values, index_col=0).iloc[:, 0]
+                fn = conventional_inputs[f"conventional_{carrier}_{attr}"]
+                values = pd.read_csv(fn, index_col=0).iloc[:, 0]
                 bus_values = n.buses.country.map(values)
                 n.generators[attr].update(
                     n.generators.loc[idx].bus.map(bus_values).dropna()
