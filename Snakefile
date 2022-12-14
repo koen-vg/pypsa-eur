@@ -108,6 +108,7 @@ if config["enable"].get("retrieve_databundle", True):
     rule retrieve_databundle:
         output:
             expand("data/bundle/{file}", file=datafiles),
+            data_dir=directory("data/bundle"),
         log:
             "logs/" + RDIR + "retrieve_databundle.log",
         resources:
