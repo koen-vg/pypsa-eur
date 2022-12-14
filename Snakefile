@@ -78,6 +78,8 @@ if config["enable"].get("prepare_links_p_nom", False):
         threads: 1
         resources:
             mem_mb=500,
+        conda:
+            "envs/environment.yaml"
         script:
             "scripts/prepare_links_p_nom.py"
 
@@ -108,6 +110,8 @@ if config["enable"].get("retrieve_databundle", True):
             "logs/" + RDIR + "retrieve_databundle.log",
         resources:
             mem_mb=1000,
+        conda:
+            "envs/environment.yaml"
         script:
             "scripts/retrieve_databundle.py"
 
@@ -133,6 +137,8 @@ if config["enable"].get("retrieve_opsd_load_data", True):
             "resources/" + RDIR + "load{weather_year}.csv",
         log:
             "logs/" + RDIR + "build_load_data{weather_year}.log",
+        conda:
+            "envs/environment.yaml"
         script:
             "scripts/build_load_data.py"
 
@@ -158,6 +164,8 @@ if config["enable"].get("retrieve_artificial_load_data", False):
             "resources/" + RDIR + "load{weather_year}.csv",
         log:
             "logs/" + RDIR + "build_artificial_load_data{weather_year}.log",
+        conda:
+            "envs/environment.yaml"
         script:
             "scripts/build_artificial_load_data.py"
 
@@ -173,6 +181,8 @@ rule build_powerplants:
     threads: 1
     resources:
         mem_mb=2000,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/build_powerplants.py"
 
@@ -199,6 +209,8 @@ rule base_network:
     threads: 1
     resources:
         mem_mb=500,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/base_network.py"
 
@@ -222,6 +234,8 @@ rule build_shapes:
     threads: 1
     resources:
         mem_mb=500,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/build_shapes.py"
 
@@ -239,6 +253,8 @@ rule build_bus_regions:
     threads: 1
     resources:
         mem_mb=1000,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/build_bus_regions.py"
 
@@ -258,6 +274,8 @@ if config["enable"].get("build_cutout", False):
         threads: ATLITE_NPROCESSES
         resources:
             mem_mb=ATLITE_NPROCESSES * 1000,
+        conda:
+            "envs/environment.yaml"
         script:
             "scripts/build_cutout.py"
 
@@ -273,6 +291,8 @@ if config["enable"].get("build_cutout", False):
         threads: ATLITE_NPROCESSES
         resources:
             mem_mb=ATLITE_NPROCESSES * 1000,
+        conda:
+            "envs/environment.yaml"
         script:
             "scripts/build_cutout.py"
 
@@ -326,6 +346,8 @@ if config["enable"].get("build_natura_raster", False):
             mem_mb=5000,
         log:
             "logs/" + RDIR + "build_natura_raster.log",
+        conda:
+            "envs/environment.yaml"
         script:
             "scripts/build_natura_raster.py"
 
@@ -375,6 +397,8 @@ rule build_ship_raster:
         mem_mb=5000,
     benchmark:
         "benchmarks/" + RDIR + "build_ship_raster"
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/build_ship_raster.py"
 
@@ -423,6 +447,8 @@ rule build_renewable_profiles:
         mem_mb=ATLITE_NPROCESSES * 4000,
     wildcard_constraints:
         technology="(?!hydro).*",  # Any technology other than hydro
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/build_renewable_profiles.py"
 
@@ -443,6 +469,8 @@ rule build_hydro_profile:
         "logs/" + RDIR + "build_hydro_profile{weather_year}.log",
     resources:
         mem_mb=2000,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/build_hydro_profile.py"
 
@@ -479,6 +507,8 @@ rule add_electricity:
     threads: 1
     resources:
         mem_mb=5000,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/add_electricity.py"
 
@@ -508,6 +538,8 @@ rule simplify_network:
     threads: 1
     resources:
         mem_mb=4000,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/simplify_network.py"
 
@@ -547,6 +579,8 @@ rule cluster_network:
     threads: 1
     resources:
         mem_mb=6000,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/cluster_network.py"
 
@@ -570,6 +604,8 @@ rule add_extra_components:
     threads: 1
     resources:
         mem_mb=3000,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/add_extra_components.py"
 
@@ -593,6 +629,8 @@ rule prepare_network:
     threads: 1
     resources:
         mem_mb=4000,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/prepare_network.py"
 
@@ -647,6 +685,8 @@ rule solve_network:
         mem_mb=memory,
     shadow:
         "minimal"
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/solve_network.py"
 
@@ -684,6 +724,8 @@ rule solve_operations_network:
         mem_mb=(lambda w: 5000 + 372 * int(w.clusters)),
     shadow:
         "minimal"
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/solve_operations_network.py"
 
@@ -705,6 +747,8 @@ rule plot_network:
         "logs/"
         + RDIR
         + "plot_network/elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_{ext}.log",
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/plot_network.py"
 
@@ -744,6 +788,8 @@ rule make_summary:
         + "make_summary/elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}.log",
     resources:
         mem_mb=500,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/make_summary.py"
 
@@ -763,6 +809,8 @@ rule plot_summary:
         + "plot_summary/{summary}_elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{country}_{ext}.log",
     resources:
         mem_mb=500,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/plot_summary.py"
 
@@ -793,5 +841,7 @@ rule plot_p_nom_max:
         + "plot_p_nom_max/elec{weather_year}_s{simpl}_{clusts}_{techs}_{country}_{ext}.log",
     resources:
         mem_mb=500,
+    conda:
+        "envs/environment.yaml"
     script:
         "scripts/plot_p_nom_max.py"
