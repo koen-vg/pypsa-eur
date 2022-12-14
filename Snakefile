@@ -9,8 +9,10 @@ from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
 HTTP = HTTPRemoteProvider()
 
-if not exists("config.yaml"):
-    copyfile("config.default.yaml", "config.yaml")
+
+# This doesn't work when pypsa-eur used as snakemake module
+# if not exists("config.yaml"):
+#     copyfile("config.default.yaml", "config.yaml")
 
 
 configfile: "config.yaml"
