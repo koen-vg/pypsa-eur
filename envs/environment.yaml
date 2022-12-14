@@ -6,6 +6,7 @@ name: pypsa-eur
 channels:
 - conda-forge
 - bioconda
+- http://conda.anaconda.org/gurobi
 dependencies:
 - python>=3.8
 - pip
@@ -13,6 +14,8 @@ dependencies:
 - pypsa>=0.21.2
 - atlite>=0.2.9
 - dask
+
+- gurobi
 
   # Dependencies of the workflow itself
 - xlrd
