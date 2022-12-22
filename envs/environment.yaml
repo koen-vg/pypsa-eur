@@ -28,7 +28,7 @@ dependencies:
 - pytables
 - lxml
 - powerplantmatching>=0.5.4
-- numpy
+- numpy<1.24 # Keep below 1.24 until vresutils gets a new release that fixes deprecations.
 - pandas
 - geopandas>=0.11.0
 - xarray
