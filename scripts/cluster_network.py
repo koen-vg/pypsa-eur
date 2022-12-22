@@ -140,6 +140,7 @@ from pypsa.networkclustering import (
     busmap_by_kmeans,
     get_clustering_from_busmap,
 )
+from scipy.sparse import csgraph
 
 warnings.filterwarnings(action="ignore", category=UserWarning)
 
@@ -152,6 +153,33 @@ logger = logging.getLogger(__name__)
 
 def normed(x):
     return (x / x.sum()).fillna(0.0)
+
+
+def get_neighbours(n, countries):
+    # Get all buses, lines, and links to establish which countries are neighbours.
+    buses = n.buses["country"].to_dict()  # dictionary of bus and associated country
+    links = n.links[["bus0", "bus1"]].replace(buses)  # replace buses with the country
+    lines = n.lines[["bus0", "bus1"]].replace(buses)  # replace buses with the country
+    # Remove links and lines within a single country.
+    links = links[links.bus0 != links.bus1].reset_index()[["bus0", "bus1"]]
+    lines = lines[lines.bus0 != lines.bus1].reset_index()[["bus0", "bus1"]]
+    connectors = pd.concat([links, lines], ignore_index=True)
+
+    # Determine which countries are neighbours.
+    all_countries = list(set(n.buses.country))
+    neighbours = []
+    for c in all_countries:
+        occurrences = connectors[connectors.isin([c])].dropna(how="all", axis=0).index
+        # Check for each connector whether it is connected to a country in the focus region.
+        for i in occurrences:
+            # If a country is already considered a neighbour, we don't need to check it again.
+            if c not in countries and c not in neighbours:
+                if (
+                    connectors.loc[i].isin([c]).any()
+                    and connectors.loc[i].isin(countries).any()
+                ):
+                    neighbours.append(c)
+    return neighbours
 
 
 def weighting_for_country(n, x):
@@ -216,6 +244,37 @@ def get_feature_for_hac(n, buses_i=None, feature=None):
     feature_data = feature_data.fillna(0)
 
     return feature_data
+
+
+def fix_country_assignment_for_hac(n):
+    # overwrite country of nodes that are disconnected from their country-topology
+    for country in n.buses.country.unique():
+        m = n[n.buses.country == country].copy()
+
+        _, labels = csgraph.connected_components(m.adjacency_matrix(), directed=False)
+
+        component = pd.Series(labels, index=m.buses.index)
+        component_sizes = component.value_counts()
+
+        if len(component_sizes) > 1:
+            disconnected_bus = component[component == component_sizes.index[-1]].index[
+                0
+            ]
+
+            neighbor_bus = n.lines.query(
+                "bus0 == @disconnected_bus or bus1 == @disconnected_bus"
+            ).iloc[0][["bus0", "bus1"]]
+            new_country = list(set(n.buses.loc[neighbor_bus].country) - set([country]))[
+                0
+            ]
+
+            logger.info(
+                f"overwriting country `{country}` of bus `{disconnected_bus}` "
+                f"to new country `{new_country}`, because it is disconnected "
+                "from its initial inter-country transmission grid."
+            )
+            n.buses.at[disconnected_bus, "country"] = new_country
+    return n
 
 
 def distribute_clusters(n, n_clusters, focus_weights=None, solver_name="cbc"):
@@ -287,6 +346,64 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name="cbc"):
     return pd.Series(m.n.get_values(), index=L.index).round().astype(int)
 
 
+def distribute_clusters_in_region(
+    n, countries: list[str], n_clusters: int, solver_name="cbc"
+):
+    """
+    Determine the number of clusters per country.
+    """
+
+    L = (
+        n.loads_t.p_set.mean()
+        .groupby(n.loads.bus)
+        .sum()
+        .loc[n.buses.country.isin(countries)]
+        .groupby([n.buses.country, n.buses.sub_network])
+        .sum()
+        .pipe(normed)
+    )
+
+    N = (
+        n.buses.loc[n.buses.country.isin(countries)]
+        .groupby(["country", "sub_network"])
+        .size()
+    )
+
+    assert (
+        n_clusters >= len(N) and n_clusters <= N.sum()
+    ), f"For countries {countries}, the number of clusters must be {len(N)} <= n_clusters <= {N.sum()}."
+
+    assert np.isclose(
+        L.sum(), 1.0, rtol=1e-3
+    ), f"Country weights L must sum up to 1.0 when distributing clusters. Is {L.sum()}."
+
+    m = po.ConcreteModel()
+
+    def n_bounds(model, *n_id):
+        return (1, N[n_id])
+
+    m.n = po.Var(list(L.index), bounds=n_bounds, domain=po.Integers)
+    m.tot = po.Constraint(expr=(po.summation(m.n) == n_clusters))
+    m.objective = po.Objective(
+        expr=sum((m.n[i] - L.loc[i] * n_clusters) ** 2 for i in L.index),
+        sense=po.minimize,
+    )
+
+    opt = po.SolverFactory(solver_name)
+    if not opt.has_capability("quadratic_objective"):
+        logger.warning(
+            f"The configured solver `{solver_name}` does not support quadratic objectives. Falling back to `ipopt`."
+        )
+        opt = po.SolverFactory("ipopt")
+
+    results = opt.solve(m)
+    assert (
+        results["Solver"][0]["Status"] == "ok"
+    ), f"Solver returned non-optimally: {results}"
+
+    return pd.Series(m.n.get_values(), index=L.index).round().astype(int)
+
+
 def busmap_for_n_clusters(
     n,
     n_clusters,
@@ -301,40 +418,6 @@ def busmap_for_n_clusters(
         algorithm_kwds.setdefault("max_iter", 30000)
         algorithm_kwds.setdefault("tol", 1e-6)
         algorithm_kwds.setdefault("random_state", 0)
-
-    def fix_country_assignment_for_hac(n):
-        from scipy.sparse import csgraph
-
-        # overwrite country of nodes that are disconnected from their country-topology
-        for country in n.buses.country.unique():
-            m = n[n.buses.country == country].copy()
-
-            _, labels = csgraph.connected_components(
-                m.adjacency_matrix(), directed=False
-            )
-
-            component = pd.Series(labels, index=m.buses.index)
-            component_sizes = component.value_counts()
-
-            if len(component_sizes) > 1:
-                disconnected_bus = component[
-                    component == component_sizes.index[-1]
-                ].index[0]
-
-                neighbor_bus = n.lines.query(
-                    "bus0 == @disconnected_bus or bus1 == @disconnected_bus"
-                ).iloc[0][["bus0", "bus1"]]
-                new_country = list(
-                    set(n.buses.loc[neighbor_bus].country) - set([country])
-                )[0]
-
-                logger.info(
-                    f"overwriting country `{country}` of bus `{disconnected_bus}` "
-                    f"to new country `{new_country}`, because it is disconnected "
-                    "from its initial inter-country transmission grid."
-                )
-                n.buses.at[disconnected_bus, "country"] = new_country
-        return n
 
     if algorithm == "hac":
         feature = get_feature_for_hac(n, buses_i=n.buses.index, feature=feature)
@@ -384,6 +467,80 @@ def busmap_for_n_clusters(
     )
 
 
+def busmap_for_region(
+    n,
+    countries: list[str],
+    n_clusters: int,
+    solver_name,
+    algorithm="kmeans",
+    feature=None,
+    **algorithm_kwds,
+):
+    if algorithm == "kmeans":
+        algorithm_kwds.setdefault("n_init", 1000)
+        algorithm_kwds.setdefault("max_iter", 30000)
+        algorithm_kwds.setdefault("tol", 1e-6)
+        algorithm_kwds.setdefault("random_state", 0)
+
+    if algorithm == "hac":
+        feature = get_feature_for_hac(n, buses_i=n.buses.index, feature=feature)
+        n = fix_country_assignment_for_hac(n)
+
+    if (algorithm != "hac") and (feature is not None):
+        logger.warning(
+            f"Keyword argument feature is only valid for algorithm `hac`. "
+            f"Given feature `{feature}` will be ignored."
+        )
+
+    n.determine_network_topology()
+
+    n_clusters = distribute_clusters_in_region(
+        n, countries, n_clusters, solver_name=solver_name
+    )
+
+    def busmap_for_country(x):
+        prefix = x.name[0] + x.name[1] + " "
+        logger.debug(f"Determining busmap for country {prefix[:-1]}")
+        if len(x) == 1:
+            return pd.Series(prefix + "0", index=x.index)
+        weight = weighting_for_country(n, x)
+
+        if algorithm == "kmeans":
+            return prefix + busmap_by_kmeans(
+                n, weight, n_clusters[x.name], buses_i=x.index, **algorithm_kwds
+            )
+        elif algorithm == "hac":
+            return prefix + busmap_by_hac(
+                n, n_clusters[x.name], buses_i=x.index, feature=feature.loc[x.index]
+            )
+        elif algorithm == "modularity":
+            return prefix + busmap_by_greedy_modularity(
+                n, n_clusters[x.name], buses_i=x.index
+            )
+        else:
+            raise ValueError(
+                f"`algorithm` must be one of 'kmeans' or 'hac'. Is {algorithm}."
+            )
+
+    return (
+        n.buses.loc[n.buses.country.isin(countries)]
+        .groupby(["country", "sub_network"], group_keys=False)
+        .apply(busmap_for_country)
+        .squeeze()
+        .rename("busmap")
+    )
+
+
+def busmap_one_node_per_country(n, countries):
+    return (
+        n.buses.loc[n.buses.country.isin(countries)]
+        .groupby(["country", "sub_network"], group_keys=False)
+        .apply(lambda c: pd.Series(c.name[0] + c.name[1], index=c.index))
+        .squeeze()
+        .rename("busmap")
+    )
+
+
 def clustering_for_n_clusters(
     n,
     n_clusters,
@@ -409,6 +566,105 @@ def clustering_for_n_clusters(
     else:
         busmap = custom_busmap
 
+    clustering = get_clustering_from_busmap(
+        n,
+        busmap,
+        bus_strategies=bus_strategies,
+        aggregate_generators_weighted=True,
+        aggregate_generators_carriers=aggregate_carriers,
+        aggregate_one_ports=["Load", "StorageUnit"],
+        line_length_factor=line_length_factor,
+        generator_strategies=generator_strategies,
+        scale_link_capital_costs=False,
+    )
+
+    if not n.links.empty:
+        nc = clustering.network
+        nc.links["underwater_fraction"] = (
+            n.links.eval("underwater_fraction * length").div(nc.links.length).dropna()
+        )
+        nc.links["capital_cost"] = nc.links["capital_cost"].add(
+            (nc.links.length - n.links.length).clip(lower=0).mul(extended_link_costs),
+            fill_value=0,
+        )
+
+    return clustering
+
+
+def focus_clustering(
+    n,
+    regions: dict[str, list[str]],
+    n_clusters_per_region=dict[str, int],
+    aggregate_carriers=None,
+    line_length_factor=1.25,
+    aggregation_strategies=dict(),
+    solver_name="cbc",
+    algorithm="hac",
+    feature=None,
+    extended_link_costs=0,
+):
+
+    bus_strategies, generator_strategies = get_aggregation_strategies(
+        aggregation_strategies
+    )
+
+    # Get a busmap for the "in" region
+    busmap_in = busmap_for_region(
+        n, regions["in"], n_clusters_per_region["in"], solver_name, algorithm, feature
+    )
+    # Get a busmap for the "neighbours" region
+    busmap_neighbours = busmap_for_region(
+        n,
+        regions["neighbours"],
+        n_clusters_per_region["neighbours"],
+        solver_name,
+        algorithm,
+        feature,
+    )
+    # Get a busmap for the "out" region. Initial one-node-per-country map.
+    busmap_out = busmap_one_node_per_country(n, regions["out"])
+    initial_clustering = get_clustering_from_busmap(
+        n,
+        busmap_out,
+        bus_strategies=bus_strategies,
+        aggregate_generators_weighted=True,
+        aggregate_generators_carriers=aggregate_carriers,
+        aggregate_one_ports=["Load", "StorageUnit"],
+        line_length_factor=line_length_factor,
+        generator_strategies=generator_strategies,
+        scale_link_capital_costs=False,
+    )
+    # Now compute an additional busmap from the initial clustering,
+    # which maps the "out" countries down to a final number of nodes.
+    buses_out = initial_clustering.network.buses.loc[
+        initial_clustering.network.buses.country.isin(regions["out"])
+    ]
+    if algorithm == "kmeans":
+        algorithm_kwds.setdefault("n_init", 1000)
+        algorithm_kwds.setdefault("max_iter", 30000)
+        algorithm_kwds.setdefault("tol", 1e-6)
+        algorithm_kwds.setdefault("random_state", 0)
+        weight = weighting_for_country(n, buses_out)
+        second_busmap = busmap_by_kmeans(
+            initial_clustering.network,
+            weight,
+            n_clusters_per_region["out"],
+            **algorithm_kwds,
+        )
+    elif algorithm == "hac":
+        feature = get_feature_for_hac(initial_clustering.network, feature=feature)
+        second_busmap = busmap_by_hac(
+            initial_clustering.network,
+            n_clusters_per_region["out"],
+            feature=feature,
+        )
+    # Compose the two busmaps
+    busmap_out = busmap_out.map(second_busmap)
+
+    # Combine all busmaps into one.
+    busmap = pd.concat([busmap_in, busmap_neighbours, busmap_out], axis="rows")
+
+    # Get the network clustering from this combined busmap.
     clustering = get_clustering_from_busmap(
         n,
         busmap,
@@ -477,6 +733,7 @@ if __name__ == "__main__":
         ]
     )
 
+    focus_clustering_p = False
     exclude_carriers = snakemake.config["clustering"]["cluster_network"].get(
         "exclude_carriers", []
     )
@@ -488,6 +745,10 @@ if __name__ == "__main__":
         )
     elif snakemake.wildcards.clusters == "all":
         n_clusters = len(n.buses)
+    elif "-" in snakemake.wildcards.clusters:
+        focus_clustering_p = True
+        n_in, n_neighbours, n_out = map(int, snakemake.wildcards.clusters.split("-"))
+        n_clusters = n_in + n_neighbours + n_out
     else:
         n_clusters = int(snakemake.wildcards.clusters)
 
@@ -497,6 +758,56 @@ if __name__ == "__main__":
         linemap = n.lines.index.to_series()
         clustering = pypsa.networkclustering.Clustering(
             n, busmap, linemap, linemap, pd.Series(dtype="O")
+        )
+    elif focus_clustering_p:
+        in_countries = snakemake.config["focus_clustering"]["countries"]
+        neighbours_countries = get_neighbours(n, in_countries)
+        out_countries = list(
+            set(snakemake.config["countries"]).difference(
+                set(in_countries) | set(neighbours_countries)
+            )
+        )
+        regions = {
+            "in": in_countries,
+            "neighbours": neighbours_countries,
+            "out": out_countries,
+        }
+
+        n_clusters_per_region = {"in": n_in, "neighbours": n_neighbours, "out": n_out}
+
+        line_length_factor = snakemake.config["lines"]["length_factor"]
+        Nyears = n.snapshot_weightings.objective.sum() / 8760
+
+        hvac_overhead_cost = load_costs(
+            snakemake.input.tech_costs,
+            snakemake.config["costs"],
+            snakemake.config["electricity"],
+            Nyears,
+        ).at["HVAC overhead", "capital_cost"]
+
+        aggregation_strategies = snakemake.config["clustering"].get(
+            "aggregation_strategies", {}
+        )
+        # translate str entries of aggregation_strategies to pd.Series functions:
+        aggregation_strategies = {
+            p: {k: getattr(pd.Series, v) for k, v in aggregation_strategies[p].items()}
+            for p in aggregation_strategies.keys()
+        }
+
+        cluster_config = snakemake.config.get("clustering", {}).get(
+            "cluster_network", {}
+        )
+        clustering = focus_clustering(
+            n,
+            regions,
+            n_clusters_per_region,
+            aggregate_carriers,
+            line_length_factor,
+            aggregation_strategies,
+            snakemake.config["solving"]["solver"]["name"],
+            cluster_config.get("algorithm", "hac"),
+            cluster_config.get("feature", "solar+onwind-time"),
+            hvac_overhead_cost,
         )
     else:
         line_length_factor = snakemake.config["lines"]["length_factor"]
