@@ -623,43 +623,45 @@ def focus_clustering(
     )
     # Get a busmap for the "out" region. Initial one-node-per-country map.
     busmap_out = busmap_one_node_per_country(n, regions["out"])
-    initial_clustering = get_clustering_from_busmap(
-        n,
-        busmap_out,
-        bus_strategies=bus_strategies,
-        aggregate_generators_weighted=True,
-        aggregate_generators_carriers=aggregate_carriers,
-        aggregate_one_ports=["Load", "StorageUnit"],
-        line_length_factor=line_length_factor,
-        generator_strategies=generator_strategies,
-        scale_link_capital_costs=False,
-    )
-    # Now compute an additional busmap from the initial clustering,
-    # which maps the "out" countries down to a final number of nodes.
-    buses_out = initial_clustering.network.buses.loc[
-        initial_clustering.network.buses.country.isin(regions["out"])
-    ]
-    if algorithm == "kmeans":
-        algorithm_kwds.setdefault("n_init", 1000)
-        algorithm_kwds.setdefault("max_iter", 30000)
-        algorithm_kwds.setdefault("tol", 1e-6)
-        algorithm_kwds.setdefault("random_state", 0)
-        weight = weighting_for_country(n, buses_out)
-        second_busmap = busmap_by_kmeans(
-            initial_clustering.network,
-            weight,
-            n_clusters_per_region["out"],
-            **algorithm_kwds,
-        )
-    elif algorithm == "hac":
-        feature = get_feature_for_hac(initial_clustering.network, feature=feature)
-        second_busmap = busmap_by_hac(
-            initial_clustering.network,
-            n_clusters_per_region["out"],
-            feature=feature,
-        )
-    # Compose the two busmaps
-    busmap_out = busmap_out.map(second_busmap)
+
+    # TODO: consider how to deal with country clustering in pypsa-eur-sec first.
+    # initial_clustering = get_clustering_from_busmap(
+    #     n,
+    #     busmap_out,
+    #     bus_strategies=bus_strategies,
+    #     aggregate_generators_weighted=True,
+    #     aggregate_generators_carriers=aggregate_carriers,
+    #     aggregate_one_ports=["Load", "StorageUnit"],
+    #     line_length_factor=line_length_factor,
+    #     generator_strategies=generator_strategies,
+    #     scale_link_capital_costs=False,
+    # )
+    # # Now compute an additional busmap from the initial clustering,
+    # # which maps the "out" countries down to a final number of nodes.
+    # buses_out = initial_clustering.network.buses.loc[
+    #     initial_clustering.network.buses.country.isin(regions["out"])
+    # ]
+    # if algorithm == "kmeans":
+    #     algorithm_kwds.setdefault("n_init", 1000)
+    #     algorithm_kwds.setdefault("max_iter", 30000)
+    #     algorithm_kwds.setdefault("tol", 1e-6)
+    #     algorithm_kwds.setdefault("random_state", 0)
+    #     weight = weighting_for_country(n, buses_out)
+    #     second_busmap = busmap_by_kmeans(
+    #         initial_clustering.network,
+    #         weight,
+    #         n_clusters_per_region["out"],
+    #         **algorithm_kwds,
+    #     )
+    # elif algorithm == "hac":
+    #     feature = get_feature_for_hac(initial_clustering.network, feature=feature)
+    #     second_busmap = busmap_by_hac(
+    #         initial_clustering.network,
+    #         n_clusters_per_region["out"],
+    #         feature=feature,
+    #     )
+    # # Compose the two busmaps
+    # busmap_out = busmap_out.map(second_busmap)
 
     # Combine all busmaps into one.
     busmap = pd.concat([busmap_in, busmap_neighbours, busmap_out], axis="rows")
