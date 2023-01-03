@@ -624,44 +624,52 @@ def focus_clustering(
     # Get a busmap for the "out" region. Initial one-node-per-country map.
     busmap_out = busmap_one_node_per_country(n, regions["out"])
 
-    # TODO: consider how to deal with country clustering in pypsa-eur-sec first.
-    # initial_clustering = get_clustering_from_busmap(
-    #     n,
-    #     busmap_out,
-    #     bus_strategies=bus_strategies,
-    #     aggregate_generators_weighted=True,
-    #     aggregate_generators_carriers=aggregate_carriers,
-    #     aggregate_one_ports=["Load", "StorageUnit"],
-    #     line_length_factor=line_length_factor,
-    #     generator_strategies=generator_strategies,
-    #     scale_link_capital_costs=False,
-    # )
-    # # Now compute an additional busmap from the initial clustering,
-    # # which maps the "out" countries down to a final number of nodes.
-    # buses_out = initial_clustering.network.buses.loc[
-    #     initial_clustering.network.buses.country.isin(regions["out"])
-    # ]
-    # if algorithm == "kmeans":
-    #     algorithm_kwds.setdefault("n_init", 1000)
-    #     algorithm_kwds.setdefault("max_iter", 30000)
-    #     algorithm_kwds.setdefault("tol", 1e-6)
-    #     algorithm_kwds.setdefault("random_state", 0)
-    #     weight = weighting_for_country(n, buses_out)
-    #     second_busmap = busmap_by_kmeans(
-    #         initial_clustering.network,
-    #         weight,
-    #         n_clusters_per_region["out"],
-    #         **algorithm_kwds,
-    #     )
-    # elif algorithm == "hac":
-    #     feature = get_feature_for_hac(initial_clustering.network, feature=feature)
-    #     second_busmap = busmap_by_hac(
-    #         initial_clustering.network,
-    #         n_clusters_per_region["out"],
-    #         feature=feature,
-    #     )
-    # # Compose the two busmaps
-    # busmap_out = busmap_out.map(second_busmap)
+    initial_clustering = get_clustering_from_busmap(
+        n,
+        busmap_out,
+        bus_strategies=bus_strategies,
+        aggregate_generators_weighted=True,
+        aggregate_generators_carriers=aggregate_carriers,
+        aggregate_one_ports=["Load", "StorageUnit"],
+        line_length_factor=line_length_factor,
+        generator_strategies=generator_strategies,
+        scale_link_capital_costs=False,
+    )
+    # Now compute an additional busmap from the initial clustering,
+    # which maps the "out" countries down to a final number of nodes.
+    buses_out = initial_clustering.network.buses.loc[
+        initial_clustering.network.buses.country.isin(regions["out"])
+    ]
+    if algorithm == "kmeans":
+        algorithm_kwds.setdefault("n_init", 1000)
+        algorithm_kwds.setdefault("max_iter", 30000)
+        algorithm_kwds.setdefault("tol", 1e-6)
+        algorithm_kwds.setdefault("random_state", 0)
+        weight = weighting_for_country(n, buses_out)
+        second_busmap = busmap_by_kmeans(
+            initial_clustering.network,
+            weight,
+            n_clusters_per_region["out"],
+            **algorithm_kwds,
+        )
+    elif algorithm == "hac":
+        feature = get_feature_for_hac(initial_clustering.network, feature=feature)
+        second_busmap = busmap_by_hac(
+            initial_clustering.network,
+            n_clusters_per_region["out"],
+            feature=feature,
+        )
+
+    # Fix up the names of the buses in the latter busmap, so that a
+    # node consisting of countries "AA", "BB", "CC" is called
+    # "AA_BB_CC" instead of getting some integer name.
+    for agg_node in second_busmap.unique():
+        second_busmap.loc[second_busmap == agg_node] = "_".join(
+            list(second_busmap.loc[second_busmap == agg_node].index)
+        )
+
+    # Compose the two busmaps
+    busmap_out = busmap_out.map(second_busmap)
 
     # Combine all busmaps into one.
     busmap = pd.concat([busmap_in, busmap_neighbours, busmap_out], axis="rows")
@@ -762,6 +770,8 @@ if __name__ == "__main__":
             n, busmap, linemap, linemap, pd.Series(dtype="O")
         )
     elif focus_clustering_p:
+        # Figure out which countries are in the "in", "neighbours" and
+        # "out" regions, and how many clusters each region gets.
         in_countries = snakemake.config["focus_clustering"]["countries"]
         neighbours_countries = get_neighbours(n, in_countries)
         out_countries = list(
@@ -777,6 +787,7 @@ if __name__ == "__main__":
 
         n_clusters_per_region = {"in": n_in, "neighbours": n_neighbours, "out": n_out}
 
+        # Retrieve some basic parameters needed for the clustering.
         line_length_factor = snakemake.config["lines"]["length_factor"]
         Nyears = n.snapshot_weightings.objective.sum() / 8760
 
@@ -787,18 +798,27 @@ if __name__ == "__main__":
             Nyears,
         ).at["HVAC overhead", "capital_cost"]
 
+        # Compile the aggregation strategies. This is done as
+        # elsewhere, except for special handling of the "country"
+        # attribute.
         aggregation_strategies = snakemake.config["clustering"].get(
             "aggregation_strategies", {}
         )
         # translate str entries of aggregation_strategies to pd.Series functions:
         aggregation_strategies = {
-            p: {k: getattr(pd.Series, v) for k, v in aggregation_strategies[p].items()}
-            for p in aggregation_strategies.keys()
+            p: {k: getattr(pd.Series, v) for k, v in strategies.items()}
+            for p, strategies in aggregation_strategies.items()
         }
+        # When aggregating countries, simply concatenate the "country"
+        # attributes of the nodes to be aggregated.
+        if "buses" not in aggregation_strategies:
+            aggregation_strategies["buses"] = {}
+        aggregation_strategies["buses"]["country"] = lambda x: "_".join(set(list(x)))
 
         cluster_config = snakemake.config.get("clustering", {}).get(
             "cluster_network", {}
         )
+
         clustering = focus_clustering(
             n,
             regions,
