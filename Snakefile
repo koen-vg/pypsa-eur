@@ -72,6 +72,7 @@ rule solve_all_networks:
 
 if config["enable"].get("prepare_links_p_nom", False):
 
+    # Local rule
     rule prepare_links_p_nom:
         output:
             "data/links_p_nom.csv",
@@ -105,6 +106,7 @@ if not config.get("tutorial", False):
 
 if config["enable"].get("retrieve_databundle", True):
 
+    # Local rule
     rule retrieve_databundle:
         output:
             expand("data/bundle/{file}", file=datafiles),
@@ -121,6 +123,7 @@ if config["enable"].get("retrieve_databundle", True):
 
 if config["enable"].get("retrieve_opsd_load_data", True):
 
+    # Local rule
     rule retrieve_load_data:
         input:
             HTTP.remote(
@@ -140,6 +143,10 @@ if config["enable"].get("retrieve_opsd_load_data", True):
             "resources/" + RDIR + "load{weather_year}.csv",
         log:
             "logs/" + RDIR + "build_load_data{weather_year}.log",
+        resources:
+            mem_mb=1000,
+            runtime=1,  # In minutes
+        group: "pypsa-eur-init"
         conda:
             "envs/environment.yaml"
         script:
@@ -148,6 +155,7 @@ if config["enable"].get("retrieve_opsd_load_data", True):
 
 if config["enable"].get("retrieve_artificial_load_data", False):
 
+    # Local rule
     rule retrieve_artificial_load_data:
         input:
             HTTP.remote(
@@ -167,6 +175,10 @@ if config["enable"].get("retrieve_artificial_load_data", False):
             "resources/" + RDIR + "load{weather_year}.csv",
         log:
             "logs/" + RDIR + "build_artificial_load_data{weather_year}.log",
+        resources:
+            mem_mb=1000,
+            runtime=1,  # In minutes
+        group: "pypsa-eur-init"
         conda:
             "envs/environment.yaml"
         script:
@@ -184,6 +196,8 @@ rule build_powerplants:
     threads: 1
     resources:
         mem_mb=2000,
+        runtime=1,  # In minutes
+    group: "pypsa-eur-init"
     conda:
         "envs/environment.yaml"
     script:
@@ -212,6 +226,8 @@ rule base_network:
     threads: 1
     resources:
         mem_mb=500,
+        runtime=1,  # In minutes
+    group: "pypsa-eur-init"
     conda:
         "envs/environment.yaml"
     script:
@@ -237,6 +253,8 @@ rule build_shapes:
     threads: 1
     resources:
         mem_mb=500,
+        runtime=1,  # In minutes
+    group: "pypsa-eur-init"
     conda:
         "envs/environment.yaml"
     script:
@@ -256,6 +274,8 @@ rule build_bus_regions:
     threads: 1
     resources:
         mem_mb=1000,
+        runtime=1,  # In minutes
+    group: "pypsa-eur-init"
     conda:
         "envs/environment.yaml"
     script:
@@ -264,6 +284,7 @@ rule build_bus_regions:
 
 if config["enable"].get("build_cutout", False):
 
+    # Local rule
     rule build_cutout:
         input:
             regions_onshore="resources/" + RDIR + "regions_onshore.geojson",
@@ -282,6 +303,7 @@ if config["enable"].get("build_cutout", False):
         script:
             "scripts/build_cutout.py"
 
+    # Local rule
     rule build_cutout_year:
         input:
             rules.build_cutout.input,
@@ -302,6 +324,7 @@ if config["enable"].get("build_cutout", False):
 
 if config["enable"].get("retrieve_cutout", True):
 
+    # Local rule
     rule retrieve_cutout:
         input:
             HTTP.remote(
@@ -321,6 +344,7 @@ if config["enable"].get("retrieve_cutout", True):
 
 if config["enable"].get("retrieve_cost_data", True):
 
+    # Local rule
     rule retrieve_cost_data:
         input:
             HTTP.remote(
@@ -347,6 +371,8 @@ if config["enable"].get("build_natura_raster", False):
             "resources/" + RDIR + "natura.tiff",
         resources:
             mem_mb=5000,
+            runtime=2,  # In minutes
+        group: "pypsa-eur-init"
         log:
             "logs/" + RDIR + "build_natura_raster.log",
         conda:
@@ -357,6 +383,7 @@ if config["enable"].get("build_natura_raster", False):
 
 if config["enable"].get("retrieve_natura_raster", True):
 
+    # Local rule
     rule retrieve_natura_raster:
         input:
             HTTP.remote(
@@ -372,6 +399,7 @@ if config["enable"].get("retrieve_natura_raster", True):
             move(input[0], output[0])
 
 
+# Local rule
 rule retrieve_ship_raster:
     input:
         HTTP.remote(
@@ -398,6 +426,8 @@ rule build_ship_raster:
         "logs/" + RDIR + "build_ship_raster.log",
     resources:
         mem_mb=5000,
+        runtime=2,  # In minutes
+    group: "pypsa-eur-init"
     benchmark:
         "benchmarks/" + RDIR + "build_ship_raster"
     conda:
@@ -405,6 +435,8 @@ rule build_ship_raster:
     script:
         "scripts/build_ship_raster.py"
 
+
+# Note: build renewable profile jobs are submitted as their own slurm jobs and not part of any job group. This because parallel job execution within job groups is broken; see https://github.com/snakemake/snakemake/issues/2060.
 
 ruleorder: build_hydro_profile > build_renewable_profiles
 
@@ -448,6 +480,7 @@ rule build_renewable_profiles:
     threads: ATLITE_NPROCESSES
     resources:
         mem_mb=ATLITE_NPROCESSES * 4000,
+        runtime=5,  # In minutes
     wildcard_constraints:
         technology="(?!hydro).*",  # Any technology other than hydro
     conda:
@@ -472,6 +505,7 @@ rule build_hydro_profile:
         "logs/" + RDIR + "build_hydro_profile{weather_year}.log",
     resources:
         mem_mb=2000,
+        runtime=5,  # In minutes
     conda:
         "envs/environment.yaml"
     script:
@@ -510,6 +544,8 @@ rule add_electricity:
     threads: 1
     resources:
         mem_mb=5000,
+        runtime=1,  # In minutes
+    group: "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -541,6 +577,8 @@ rule simplify_network:
     threads: 1
     resources:
         mem_mb=4000,
+        runtime=5,  # In minutes
+    group: "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -582,6 +620,8 @@ rule cluster_network:
     threads: 1
     resources:
         mem_mb=6000,
+        runtime=3,  # In minutes
+    group: "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -607,6 +647,8 @@ rule add_extra_components:
     threads: 1
     resources:
         mem_mb=3000,
+        runtime=1,  # In minutes
+    group: "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -632,6 +674,8 @@ rule prepare_network:
     threads: 1
     resources:
         mem_mb=4000,
+        runtime=1,  # In minutes
+    group: "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -656,6 +700,9 @@ def memory(w):
         return int(factor * (18000 + 180 * 4000))
     else:
         return int(factor * (10000 + 195 * int(w.clusters)))
+
+
+# TODO: add runtime resources for remaining rules
 
 
 rule solve_network:
@@ -733,6 +780,7 @@ rule solve_operations_network:
         "scripts/solve_operations_network.py"
 
 
+# Local rule
 rule plot_network:
     input:
         network="results/networks/"
@@ -776,6 +824,7 @@ def input_make_summary(w):
     )
 
 
+# Local rule
 rule make_summary:
     input:
         input_make_summary,
@@ -797,6 +846,7 @@ rule make_summary:
         "scripts/make_summary.py"
 
 
+# Local rule
 rule plot_summary:
     input:
         "results/summaries/"
@@ -831,6 +881,7 @@ def input_plot_p_nom_max(w):
     ]
 
 
+# Local rule
 rule plot_p_nom_max:
     input:
         input_plot_p_nom_max,
