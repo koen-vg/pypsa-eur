@@ -500,7 +500,7 @@ rule build_hydro_profile:
         else [],
     output:
         profile="resources/" + RDIR + "profile{weather_year}_hydro.nc",
-        eia_hydro="resources/eia_hydro_annual_generation{weather_year}.csv",
+        eia_hydro="resources/" + RDIR + "eia_hydro_annual_generation{weather_year}.csv",
     log:
         "logs/" + RDIR + "build_hydro_profile{weather_year}.log",
     resources:
