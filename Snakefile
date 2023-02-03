@@ -146,12 +146,12 @@ if config["enable"].get("retrieve_opsd_load_data", True):
         resources:
             mem_mb=1000,
             runtime=1,  # In minutes
-        group: "pypsa-eur-init"
+        group:
+            "pypsa-eur-init"
         conda:
             "envs/environment.yaml"
         script:
             "scripts/build_load_data.py"
-
 
 if config["enable"].get("retrieve_artificial_load_data", False):
 
@@ -178,7 +178,8 @@ if config["enable"].get("retrieve_artificial_load_data", False):
         resources:
             mem_mb=1000,
             runtime=1,  # In minutes
-        group: "pypsa-eur-init"
+        group:
+            "pypsa-eur-init"
         conda:
             "envs/environment.yaml"
         script:
@@ -197,7 +198,8 @@ rule build_powerplants:
     resources:
         mem_mb=2000,
         runtime=1,  # In minutes
-    group: "pypsa-eur-init"
+    group:
+        "pypsa-eur-init"
     conda:
         "envs/environment.yaml"
     script:
@@ -227,7 +229,8 @@ rule base_network:
     resources:
         mem_mb=500,
         runtime=1,  # In minutes
-    group: "pypsa-eur-init"
+    group:
+        "pypsa-eur-init"
     conda:
         "envs/environment.yaml"
     script:
@@ -254,7 +257,8 @@ rule build_shapes:
     resources:
         mem_mb=500,
         runtime=1,  # In minutes
-    group: "pypsa-eur-init"
+    group:
+        "pypsa-eur-init"
     conda:
         "envs/environment.yaml"
     script:
@@ -275,7 +279,8 @@ rule build_bus_regions:
     resources:
         mem_mb=1000,
         runtime=1,  # In minutes
-    group: "pypsa-eur-init"
+    group:
+        "pypsa-eur-init"
     conda:
         "envs/environment.yaml"
     script:
@@ -372,7 +377,8 @@ if config["enable"].get("build_natura_raster", False):
         resources:
             mem_mb=5000,
             runtime=2,  # In minutes
-        group: "pypsa-eur-init"
+        group:
+            "pypsa-eur-init"
         log:
             "logs/" + RDIR + "build_natura_raster.log",
         conda:
@@ -427,7 +433,8 @@ rule build_ship_raster:
     resources:
         mem_mb=5000,
         runtime=2,  # In minutes
-    group: "pypsa-eur-init"
+    group:
+        "pypsa-eur-init"
     benchmark:
         "benchmarks/" + RDIR + "build_ship_raster"
     conda:
@@ -545,7 +552,8 @@ rule add_electricity:
     resources:
         mem_mb=5000,
         runtime=1,  # In minutes
-    group: "pypsa-eur-build"
+    group:
+        "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -578,7 +586,8 @@ rule simplify_network:
     resources:
         mem_mb=4000,
         runtime=5,  # In minutes
-    group: "pypsa-eur-build"
+    group:
+        "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -621,7 +630,8 @@ rule cluster_network:
     resources:
         mem_mb=6000,
         runtime=3,  # In minutes
-    group: "pypsa-eur-build"
+    group:
+        "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -648,7 +658,8 @@ rule add_extra_components:
     resources:
         mem_mb=3000,
         runtime=1,  # In minutes
-    group: "pypsa-eur-build"
+    group:
+        "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -675,7 +686,8 @@ rule prepare_network:
     resources:
         mem_mb=4000,
         runtime=1,  # In minutes
-    group: "pypsa-eur-build"
+    group:
+        "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
