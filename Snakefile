@@ -295,11 +295,11 @@ if config["enable"].get("build_cutout", False):
             regions_onshore="resources/" + RDIR + "regions_onshore.geojson",
             regions_offshore="resources/" + RDIR + "regions_offshore.geojson",
         output:
-            protected("cutouts/" + CDIR + "{cutout}.nc"),
+            protected("cutouts/" + CDIR + "{cutout}_{weather_year}.nc"),
         log:
-            "logs/" + CDIR + "build_cutout/{cutout}.log",
+            "logs/" + CDIR + "build_cutout/{cutout}_{weather_year}.log",
         benchmark:
-            "benchmarks/" + CDIR + "build_cutout_{cutout}"
+            "benchmarks/" + CDIR + "build_cutout_{cutout}_{weather_year}"
         threads: ATLITE_NPROCESSES
         resources:
             mem_mb=ATLITE_NPROCESSES * 1000,
@@ -445,6 +445,20 @@ rule build_ship_raster:
 
 # Note: build renewable profile jobs are submitted as their own slurm jobs and not part of any job group. This because parallel job execution within job groups is broken; see https://github.com/snakemake/snakemake/issues/2060.
 
+
+def renewable_profiles_cutouts(wildcards):
+    years = [wildcards.weather_year]
+    # In case the year boundary is not the 1st of January, we also
+    # need the cutout for year y+1 for each y in `years`.
+    if config["snapshots"].get("year_boundary", "01-01") != "01-01":
+        years.append(str(int(wildcards.weather_year) + 1))
+
+    return [
+        f"cutouts/{config['renewable'][wildcards.technology]['cutout']}_{y}.nc"
+        for y in years
+    ]
+
+
 ruleorder: build_hydro_profile > build_renewable_profiles
 
 
@@ -474,10 +488,7 @@ rule build_renewable_profiles:
             if w.technology in ("onwind", "solar")
             else "resources/" + RDIR + "regions_offshore.geojson"
         ),
-        cutout=lambda w: "cutouts/"
-        + CDIR
-        + config["renewable"][w.technology]["cutout"]
-        + ".nc",
+        cutouts=renewable_profiles_cutouts,
     output:
         profile="resources/" + RDIR + "profile{weather_year}_{technology}.nc",
     log:
@@ -496,15 +507,27 @@ rule build_renewable_profiles:
         "scripts/build_renewable_profiles.py"
 
 
+def hydro_profiles_cutouts(wildcards):
+    if "hydro" in config["renewable"]:
+        years = [wildcards.weather_year]
+        # In case the year boundary is not the 1st of January, we also
+        # need the cutout for year y+1 for each y in `years`.
+        if config["snapshots"].get("year_boundary", "01-01") != "01-01":
+            years.append(str(int(wildcards.weather_year) + 1))
+        return [
+            f"cutouts/{config['renewable']['hydro']['cutout']}_{y}.nc" for y in years
+        ]
+    else:
+        return "config['renewable']['hydro']['cutout'] not configured"
+
+
 rule build_hydro_profile:
     input:
         country_shapes="resources/" + RDIR + "country_shapes.geojson",
         eia_hydro_generation="data/eia_hydro_annual_generation.csv",
         eia_hydro_capacity="data/eia_hydro_annual_capacity.csv",
         era5_runoff="data/era5-annual-runoff-per-country.csv",
-        cutout=f"cutouts/" + CDIR + config["renewable"]["hydro"]["cutout"] + ".nc"
-        if "hydro" in config["renewable"]
-        else [],
+        cutouts=hydro_profiles_cutouts,
     output:
         profile="resources/" + RDIR + "profile{weather_year}_hydro.nc",
         eia_hydro="resources/" + RDIR + "eia_hydro_annual_generation{weather_year}.csv",

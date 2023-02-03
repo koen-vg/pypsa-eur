@@ -19,11 +19,14 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     weather_year = snakemake.wildcards.weather_year
+    boundary = snakemake.config["snapshots"].get(
+        "year_boundary", "01-01"
+    )  # if we do not take full calendar years
     if weather_year:
         snapshots = dict(
-            start=weather_year,
-            end=str(int(weather_year)+1),
-            closed="left"
+            start=f"{weather_year}-{boundary}",
+            end=f"{int(weather_year) + 1}-{boundary}",
+            closed="left",
         )
     else:
         snapshots = snakemake.config['snapshots']

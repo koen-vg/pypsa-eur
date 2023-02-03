@@ -66,8 +66,10 @@ import atlite
 import country_converter as coco
 import geopandas as gpd
 import pandas as pd
+import xarray as xr
 from _helpers import configure_logging
 from numpy.polynomial import Polynomial
+from tempfile import NamedTemporaryFile
 
 cc = coco.CountryConverter()
 
@@ -172,7 +174,12 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     config_hydro = snakemake.config["renewable"]["hydro"]
-    cutout = atlite.Cutout(snakemake.input.cutout)
+
+    # Load the provided cutout files and merge them.
+    cutouts = [atlite.Cutout(c) for c in snakemake.input.cutouts]
+    xdatas = [c.data for c in cutouts]
+    combined_data = xr.concat(xdatas, dim="time")
+    cutout = atlite.Cutout(NamedTemporaryFile().name, data=combined_data)
 
     countries = snakemake.config["countries"]
     country_shapes = (

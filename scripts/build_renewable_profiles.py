@@ -193,6 +193,7 @@ from _helpers import configure_logging
 from dask.distributed import Client, LocalCluster
 from pypsa.geo import haversine
 from shapely.geometry import LineString
+from tempfile import NamedTemporaryFile
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +225,12 @@ if __name__ == "__main__":
     cluster = LocalCluster(n_workers=nprocesses, threads_per_worker=1)
     client = Client(cluster, asynchronous=True)
 
-    cutout = atlite.Cutout(snakemake.input["cutout"])
+    # Load the provided cutout files and merge them.
+    cutouts = [atlite.Cutout(c) for c in snakemake.input.cutouts]
+    xdatas = [c.data for c in cutouts]
+    combined_data = xr.concat(xdatas, dim="time", data_vars="minimal")
+    cutout = atlite.Cutout(NamedTemporaryFile().name, data=combined_data)
+
     regions = gpd.read_file(snakemake.input.regions)
     assert not regions.empty, (
         f"List of regions in {snakemake.input.regions} is empty, please "

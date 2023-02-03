@@ -712,8 +712,6 @@ def base_network(
     n = pypsa.Network()
     n.name = "PyPSA-Eur"
 
-    n.set_snapshots(pd.date_range(freq="h", **config["snapshots"]))
-
     n.import_components_from_dataframe(buses, "Bus")
     n.import_components_from_dataframe(lines, "Line")
     n.import_components_from_dataframe(transformers, "Transformer")

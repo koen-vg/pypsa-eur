@@ -157,7 +157,10 @@ def average_every_nhours(n, offset):
     logger.info(f"Resampling the network to {offset}")
     m = n.copy(with_time=False)
 
+    # Resample the snampshot weightings.
     snapshot_weightings = n.snapshot_weightings.resample(offset).sum()
+
+    # Apply the snapshots.
     m.set_snapshots(snapshot_weightings.index)
     m.snapshot_weightings = snapshot_weightings
 
@@ -165,7 +168,7 @@ def average_every_nhours(n, offset):
         pnl = getattr(m, c.list_name + "_t")
         for k, df in c.pnl.items():
             if not df.empty:
-                pnl[k] = df.resample(offset).mean()
+                pnl[k] = df.resample(offset).mean().loc[m.snapshots]
 
     return m
 
