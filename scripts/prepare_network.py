@@ -64,7 +64,7 @@ import numpy as np
 import pandas as pd
 import pypsa
 from _helpers import configure_logging
-from add_electricity import load_costs, update_transmission_costs
+from add_electricity import drop_leap_day, load_costs, update_transmission_costs
 
 idx = pd.IndexSlice
 
@@ -272,6 +272,11 @@ if __name__ == "__main__":
         m = re.match(r"^\d+h$", o, re.IGNORECASE)
         if m is not None:
             n = average_every_nhours(n, m.group(0))
+            # If we dropped leap days before, we now have to do it
+            # again because they were added back by the resampling.
+            if snakemake.config["enable"].get("drop_leap_days", True):
+                drop_leap_day(n)
+
             break
 
     for o in opts:
