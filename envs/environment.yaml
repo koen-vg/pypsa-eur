@@ -11,7 +11,7 @@ dependencies:
 - python>=3.8
 - pip
 
-- pypsa>=0.21.2
+- pypsa>=0.21.3
 - atlite>=0.2.9
 - dask
 
@@ -27,7 +27,7 @@ dependencies:
 - yaml
 - pytables
 - lxml
-- powerplantmatching>=0.5.4
+- powerplantmatching>=0.5.5
 - numpy<1.24 # Keep below 1.24 until vresutils gets a new release that fixes deprecations.
 - pandas
 - geopandas>=0.11.0
@@ -35,12 +35,12 @@ dependencies:
 - netcdf4
 - networkx
 - scipy
-- shapely<2.0   # need to address deprecations
+- shapely>=2.0
 - progressbar2
 - pyomo
-- matplotlib
+- matplotlib<3.6
 - proj
-- fiona <= 1.18.20    # Till issue https://github.com/Toblerity/Fiona/issues/1085 is not solved
+- fiona
 - country_converter
 - cfgrib
 
