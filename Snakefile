@@ -738,43 +738,71 @@ def memory(w):
         return int(factor * (10000 + 195 * int(w.clusters)))
 
 
-# TODO: add runtime resources for remaining rules
+if config["solving"]["options"].get("linopy", False) == True:
 
+    rule solve_network:
+        input:
+            "networks/" + RDIR + "elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
+        output:
+            "results/networks/" + RDIR + "elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
+        log:
+            solver=normpath(
+                "logs/"
+                + RDIR
+                + "solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_solver.log"
+            ),
+            python="logs/"
+            + RDIR
+            + "solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
+            memory="logs/"
+            + RDIR
+            + "solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log",
+        benchmark:
+            (
+                "benchmarks/"
+                + RDIR
+                + "solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+            )
+        threads: 4
+        resources:
+            mem_mb=memory,
+        shadow:
+            "minimal"
+        script:
+            "scripts/solve_network_linopy.py"
 
-rule solve_network:
-    input:
-        "networks/" + RDIR + "elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
-    output:
-        "results/networks/"
-        + RDIR
-        + "elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
-    log:
-        solver=normpath(
-            "logs/"
+else:
+
+    rule solve_network:
+        input:
+            "networks/" + RDIR + "elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
+        output:
+            "results/networks/" + RDIR + "elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",
+        log:
+            solver=normpath(
+                "logs/"
+                + RDIR
+                + "solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_solver.log"
+            ),
+            python="logs/"
             + RDIR
-            + "solve_network/elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_solver.log"
-        ),
-        python="logs/"
-        + RDIR
-        + "solve_network/elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
-        memory="logs/"
-        + RDIR
-        + "solve_network/elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log",
-    benchmark:
-        (
-            "benchmarks/"
+            + "solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_python.log",
+            memory="logs/"
             + RDIR
-            + "solve_network/elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}"
-        )
-    threads: 4
-    resources:
-        mem_mb=memory,
-    shadow:
-        "minimal"
-    conda:
-        "envs/environment.yaml"
-    script:
-        "scripts/solve_network.py"
+            + "solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_memory.log",
+        benchmark:
+            (
+                "benchmarks/"
+                + RDIR
+                + "solve_network/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}"
+            )
+        threads: 4
+        resources:
+            mem_mb=memory,
+        shadow:
+            "minimal"
+        script:
+            "scripts/solve_network.py"
 
 
 rule solve_operations_network:

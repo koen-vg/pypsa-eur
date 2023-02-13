@@ -13,6 +13,7 @@ Upcoming Release
 * Carriers of generators can now be excluded from aggregation in clustering network and simplify network.
 
 * Fix EQ constraint for the case no hydro inflow is available
+* Add option to solve PyPSA-Eur with Linopy
 
 * Bugfix in the reserve constraint will increase demand related reserve requirements
 
