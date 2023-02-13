@@ -533,6 +533,7 @@ rule build_hydro_profile:
         eia_hydro="resources/" + RDIR + "eia_hydro_annual_generation{weather_year}.csv",
     log:
         "logs/" + RDIR + "build_hydro_profile{weather_year}.log",
+    threads: ATLITE_NPROCESSES
     resources:
         mem_mb=2000,
         runtime=5,  # In minutes
