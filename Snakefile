@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: : 2017-2022 The PyPSA-Eur Authors
+# SPDX-FileCopyrightText: : 2017-2023 The PyPSA-Eur Authors
 #
 # SPDX-License-Identifier: MIT
 
@@ -152,6 +152,7 @@ if config["enable"].get("retrieve_opsd_load_data", True):
             "envs/environment.yaml"
         script:
             "scripts/build_load_data.py"
+
 
 if config["enable"].get("retrieve_artificial_load_data", False):
 
@@ -424,8 +425,13 @@ rule retrieve_ship_raster:
 rule build_ship_raster:
     input:
         ship_density="data/shipdensity_global.zip",
-        # TODO: hardcoding the year here is a dirty dirty hack!
-        cutouts=expand("cutouts/" + CDIR + "{cutouts}_2013.nc", **config["atlite"]),
+        cutouts=expand(
+            "cutouts/" + CDIR + "{cutout}_2013.nc",
+            cutout=[
+                config["renewable"][k]["cutout"]
+                for k in config["electricity"]["renewable_carriers"]
+            ],
+        ),
     output:
         "resources/" + RDIR + "shipdensity_raster.nc",
     log:
@@ -473,7 +479,7 @@ rule build_renewable_profiles:
         ),
         gebco=lambda w: (
             "data/bundle/GEBCO_2014_2D.nc"
-            if "max_depth" in config["renewable"][w.technology].keys()
+            if config["renewable"][w.technology].get("max_depth")
             else []
         ),
         ship_density=lambda w: (
@@ -550,7 +556,7 @@ rule add_electricity:
             + RDIR
             + "profile{weather_year}_"
             + f"{tech}.nc"
-            for tech in config["renewable"]
+            for tech in config["electricity"]["renewable_carriers"]
         },
         **{
             f"conventional_{carrier}_{attr}": fn
