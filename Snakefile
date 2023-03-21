@@ -147,11 +147,12 @@ if config["enable"].get("retrieve_opsd_load_data", True):
             mem_mb=1000,
             runtime=1,  # In minutes
         group:
-            "pypsa-eur-init"
+            "pypsa-eur-build"
         conda:
             "envs/environment.yaml"
         script:
             "scripts/build_load_data.py"
+
 
 if config["enable"].get("retrieve_artificial_load_data", False):
 
@@ -179,7 +180,7 @@ if config["enable"].get("retrieve_artificial_load_data", False):
             mem_mb=1000,
             runtime=1,  # In minutes
         group:
-            "pypsa-eur-init"
+            "pypsa-eur-build"
         conda:
             "envs/environment.yaml"
         script:
@@ -199,7 +200,7 @@ rule build_powerplants:
         mem_mb=2000,
         runtime=1,  # In minutes
     group:
-        "pypsa-eur-init"
+        "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -230,7 +231,7 @@ rule base_network:
         mem_mb=500,
         runtime=1,  # In minutes
     group:
-        "pypsa-eur-init"
+        "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -258,7 +259,7 @@ rule build_shapes:
         mem_mb=500,
         runtime=1,  # In minutes
     group:
-        "pypsa-eur-init"
+        "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -280,7 +281,7 @@ rule build_bus_regions:
         mem_mb=1000,
         runtime=1,  # In minutes
     group:
-        "pypsa-eur-init"
+        "pypsa-eur-build"
     conda:
         "envs/environment.yaml"
     script:
@@ -378,7 +379,7 @@ if config["enable"].get("build_natura_raster", False):
             mem_mb=5000,
             runtime=2,  # In minutes
         group:
-            "pypsa-eur-init"
+            "pypsa-eur-build"
         log:
             "logs/" + RDIR + "build_natura_raster.log",
         conda:
@@ -434,7 +435,7 @@ rule build_ship_raster:
         mem_mb=5000,
         runtime=2,  # In minutes
     group:
-        "pypsa-eur-init"
+        "pypsa-eur-build"
     benchmark:
         "benchmarks/" + RDIR + "build_ship_raster"
     conda:
@@ -496,6 +497,8 @@ rule build_renewable_profiles:
     benchmark:
         "benchmarks/" + RDIR + "build_renewable_profiles{weather_year}_{technology}"
     threads: ATLITE_NPROCESSES
+    group:
+        "pypsa-eur-build"
     resources:
         mem_mb=ATLITE_NPROCESSES * 4000,
         runtime=5,  # In minutes
@@ -533,6 +536,8 @@ rule build_hydro_profile:
         eia_hydro="resources/" + RDIR + "eia_hydro_annual_generation{weather_year}.csv",
     log:
         "logs/" + RDIR + "build_hydro_profile{weather_year}.log",
+    group:
+        "pypsa-eur-build"
     resources:
         mem_mb=2000,
         runtime=5,  # In minutes
