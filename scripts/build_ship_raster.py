@@ -39,6 +39,7 @@ Description
 
 import logging
 import os
+import tempfile
 import zipfile
 
 import xarray as xr
@@ -58,11 +59,12 @@ if __name__ == "__main__":
     xs, Xs, ys, Ys = zip(*(determine_cutout_xXyY(cutout) for cutout in cutouts))
 
     with zipfile.ZipFile(snakemake.input.ship_density) as zip_f:
-        zip_f.extract("shipdensity_global.tif")
-        with xr.open_rasterio("shipdensity_global.tif") as ship_density:
-            ship_density = ship_density.drop(["band"]).sel(
-                x=slice(min(xs), max(Xs)), y=slice(max(Ys), min(ys))
-            )
-            ship_density.to_netcdf(snakemake.output[0])
-
-    os.remove("shipdensity_global.tif")
+        with tempfile.TemporaryDirectory() as tmp_d:
+            zip_f.extract("shipdensity_global.tif", path=tmp_d)
+            with xr.open_rasterio(
+                os.path.join(tmp_d, "shipdensity_global.tif")
+            ) as ship_density:
+                ship_density = ship_density.drop(["band"]).sel(
+                    x=slice(min(xs), max(Xs)), y=slice(max(Ys), min(ys))
+                )
+                ship_density.to_netcdf(snakemake.output[0])
