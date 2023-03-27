@@ -90,7 +90,6 @@ from linopy import merge
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.abstract import optimize_transmission_expansion_iteratively
 from pypsa.optimization.optimize import optimize
-from vresutils.benchmark import memory_logger
 
 logger = logging.getLogger(__name__)
 
@@ -491,7 +490,7 @@ def extra_functionality(n, snapshots):
     add_battery_constraints(n)
 
 
-def solve_network(n, config, opts="", **kwargs):
+def solve_network(n, config, solver_dir, opts="", **kwargs):
     solver_options = config["solving"]["solver"].copy()
     solver_name = solver_options.pop("name")
     cf_solving = config["solving"]["options"]
@@ -509,26 +508,31 @@ def solve_network(n, config, opts="", **kwargs):
         logger.info("No expandable lines found. Skipping iterative solving.")
 
     if skip_iterations:
-        optimize(
+        status, _ = optimize(
             n,
             solver_name=solver_name,
-            solver_options=solver_options,
             extra_functionality=extra_functionality,
+            model_kwargs={"solver_dir": solver_dir},
             **kwargs,
+            **solver_options,
         )
     else:
         optimize_transmission_expansion_iteratively(
             n,
             solver_name=solver_name,
-            solver_options=solver_options,
             track_iterations=track_iterations,
             min_iterations=min_iterations,
             max_iterations=max_iterations,
             extra_functionality=extra_functionality,
+            model_kwargs={"solver_dir": solver_dir},
             **kwargs,
+            **solver_options,
         )
 
-    return n
+        # Note: the above function just crashes if optimisation status is not "ok"
+        status = "ok"
+
+    return n, status
 
 
 if __name__ == "__main__":
@@ -551,18 +555,14 @@ if __name__ == "__main__":
     opts = snakemake.wildcards.opts.split("-")
     solve_opts = snakemake.config["solving"]["options"]
 
-    fn = getattr(snakemake.log, "memory", None)
-    with memory_logger(filename=fn, interval=30.0) as mem:
-        n = pypsa.Network(snakemake.input[0])
-        n = prepare_network(n, solve_opts)
-        n = solve_network(
-            n,
-            snakemake.config,
-            opts,
-            solver_dir=tmpdir,
-            solver_logfile=snakemake.log.solver,
-        )
-        n.meta = dict(snakemake.config, **dict(wildcards=dict(snakemake.wildcards)))
-        n.export_to_netcdf(snakemake.output[0])
-
-    logger.info("Maximum memory usage: {}".format(mem.mem_usage))
+    n = pypsa.Network(snakemake.input[0])
+    n = prepare_network(n, solve_opts)
+    n, _ = solve_network(
+        n,
+        snakemake.config,
+        solver_dir=tmpdir,
+        opts=opts,
+        solver_logfile=snakemake.log.solver,
+    )
+    n.meta = dict(snakemake.config, **dict(wildcards=dict(snakemake.wildcards)))
+    n.export_to_netcdf(snakemake.output[0])
