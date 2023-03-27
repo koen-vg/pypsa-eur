@@ -593,6 +593,11 @@ rule add_electricity:
 rule simplify_network:
     input:
         network="networks/" + RDIR + "elec{weather_year}.nc",
+        network_constant=(
+            "networks/"
+            + f"{RDIR}elec{config['clustering'].get('constant_base_year', 2013)}"
+            + ".nc"
+        ),
         tech_costs=COSTS,
         regions_onshore="resources/" + RDIR + "regions_onshore.geojson",
         regions_offshore="resources/" + RDIR + "regions_offshore.geojson",
@@ -627,12 +632,19 @@ rule simplify_network:
 rule cluster_network:
     input:
         network="networks/" + RDIR + "elec{weather_year}_s{simpl}.nc",
-        regions_onshore="resources/"
-        + RDIR
-        + "regions_onshore_elec{weather_year}_s{simpl}.geojson",
-        regions_offshore="resources/"
-        + RDIR
-        + "regions_offshore_elec{weather_year}_s{simpl}.geojson",
+        network_constant=(
+            "networks/"
+            + f"{RDIR}elec{config['clustering'].get('constant_base_year', 2013)}"
+            + "_s{simpl}.nc"
+        ),
+        regions_onshore=(
+            "resources/" + RDIR + "regions_onshore_elec{weather_year}_s{simpl}.geojson"
+        ),
+        regions_offshore=(
+            "resources/"
+            + RDIR
+            + "regions_offshore_elec{weather_year}_s{simpl}.geojson"
+        ),
         busmap=ancient("resources/" + RDIR + "busmap_elec{weather_year}_s{simpl}.csv"),
         custom_busmap=(
             "data/custom_busmap_elec_s{simpl}_{clusters}.csv"

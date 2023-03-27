@@ -476,7 +476,13 @@ def aggregate_to_substations(n, aggregation_strategies=dict(), buses_i=None):
 
 
 def cluster(
-    n, n_clusters, config, algorithm="hac", feature=None, aggregation_strategies=dict()
+    n,
+    n_constant,
+    n_clusters,
+    config,
+    algorithm="hac",
+    feature=None,
+    aggregation_strategies=dict(),
 ):
     logger.info(f"Clustering to {n_clusters} buses")
 
@@ -492,6 +498,7 @@ def cluster(
 
     clustering = clustering_for_n_clusters(
         n,
+        n_constant,
         n_clusters,
         custom_busmap=False,
         aggregation_strategies=aggregation_strategies,
@@ -512,6 +519,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)
+    n_constant = pypsa.Network(snakemake.input.network_constant)
 
     aggregation_strategies = snakemake.config["clustering"].get(
         "aggregation_strategies", {}
@@ -579,6 +587,7 @@ if __name__ == "__main__":
     if snakemake.wildcards.simpl:
         n, cluster_map = cluster(
             n,
+            n_constant,
             int(snakemake.wildcards.simpl),
             snakemake.config,
             cluster_config.get("algorithm", "hac"),

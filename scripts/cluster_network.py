@@ -541,6 +541,7 @@ def busmap_one_node_per_country(n, countries):
 
 def clustering_for_n_clusters(
     n,
+    n_constant,
     n_clusters,
     custom_busmap=False,
     aggregate_carriers=None,
@@ -558,7 +559,7 @@ def clustering_for_n_clusters(
 
     if not isinstance(custom_busmap, pd.Series):
         busmap = busmap_for_n_clusters(
-            n, n_clusters, solver_name, focus_weights, algorithm, feature
+            n_constant, n_clusters, solver_name, focus_weights, algorithm, feature
         )
     else:
         busmap = custom_busmap
@@ -590,6 +591,7 @@ def clustering_for_n_clusters(
 
 def focus_clustering(
     n,
+    n_constant,
     regions: dict[str, list[str]],
     n_clusters_per_region=dict[str, int],
     aggregate_carriers=None,
@@ -600,18 +602,22 @@ def focus_clustering(
     feature=None,
     extended_link_costs=0,
 ):
-
     bus_strategies, generator_strategies = get_aggregation_strategies(
         aggregation_strategies
     )
 
     # Get a busmap for the "in" region
     busmap_in = busmap_for_region(
-        n, regions["in"], n_clusters_per_region["in"], solver_name, algorithm, feature
+        n_constant,
+        regions["in"],
+        n_clusters_per_region["in"],
+        solver_name,
+        algorithm,
+        feature,
     )
     # Get a busmap for the "neighbours" region
     busmap_neighbours = busmap_for_region(
-        n,
+        n_constant,
         regions["neighbours"],
         n_clusters_per_region["neighbours"],
         solver_name,
@@ -622,7 +628,7 @@ def focus_clustering(
     busmap_out = busmap_one_node_per_country(n, regions["out"])
 
     initial_clustering = get_clustering_from_busmap(
-        n,
+        n_constant,
         busmap_out,
         bus_strategies=bus_strategies,
         aggregate_generators_weighted=True,
@@ -729,6 +735,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
 
     n = pypsa.Network(snakemake.input.network)
+    n_constant = pypsa.Network(snakemake.input.network_constant)
 
     focus_weights = snakemake.config.get("focus_weights", None)
 
@@ -819,6 +826,7 @@ if __name__ == "__main__":
 
         clustering = focus_clustering(
             n,
+            n_constant,
             regions,
             n_clusters_per_region,
             aggregate_carriers,
@@ -869,6 +877,7 @@ if __name__ == "__main__":
         )
         clustering = clustering_for_n_clusters(
             n,
+            n_constant,
             n_clusters,
             custom_busmap,
             aggregate_carriers,
