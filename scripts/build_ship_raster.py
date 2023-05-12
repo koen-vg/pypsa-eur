@@ -42,7 +42,7 @@ import os
 import tempfile
 import zipfile
 
-import xarray as xr
+import rioxarray
 from _helpers import configure_logging
 from build_natura_raster import determine_cutout_xXyY
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     with zipfile.ZipFile(snakemake.input.ship_density) as zip_f:
         with tempfile.TemporaryDirectory() as tmp_d:
             zip_f.extract("shipdensity_global.tif", path=tmp_d)
-            with xr.open_rasterio(
+            with rioxarray.open_rasterio(
                 os.path.join(tmp_d, "shipdensity_global.tif")
             ) as ship_density:
                 ship_density = ship_density.drop(["band"]).sel(

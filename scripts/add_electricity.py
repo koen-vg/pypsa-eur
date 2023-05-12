@@ -726,7 +726,7 @@ if __name__ == "__main__":
         snapshots = dict(
             start=f"{weather_year}-{boundary}",
             end=f"{int(weather_year) + 1}-{boundary}",
-            closed="left",
+            inclusive="left",
         )
     else:
         snapshots = snakemake.config["snapshots"]
