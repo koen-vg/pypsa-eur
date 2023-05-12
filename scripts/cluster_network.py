@@ -529,9 +529,15 @@ def busmap_for_region(
 
 
 def busmap_one_node_per_country(n, countries):
+    """Return a busmap with one bus per given countries
+
+    The busmap only includes nodes inside the given countries.
+    Subnetworks (i.e. different synchronous zones within a single
+    country) are ignored and will be clustered together by this
+    busmap."""
     return (
         n.buses.loc[n.buses.country.isin(countries)]
-        .groupby(["country", "sub_network"], group_keys=False)
+        .groupby(["country"], group_keys=False)
         .apply(lambda c: pd.Series(c.name[0] + c.name[1], index=c.index))
         .squeeze()
         .rename("busmap")
@@ -617,6 +623,7 @@ def focus_clustering(
         feature,
     )
     # Get a busmap for the "out" region. Initial one-node-per-country map.
+    # TODO: This assumes that we have fewer "out" nodes than "out" countries!
     busmap_out = busmap_one_node_per_country(n, regions["out"])
 
     initial_clustering = get_clustering_from_busmap(
@@ -695,7 +702,7 @@ def focus_clustering(
     return clustering
 
 
-def cluster_regions(busmaps, input=None, output=None):
+def cluster_regions(n, busmaps, input=None, output=None):
     busmap = reduce(lambda x, y: x.map(y), busmaps[1:], busmaps[0])
 
     for which in ("regions_onshore", "regions_offshore"):
@@ -703,6 +710,7 @@ def cluster_regions(busmaps, input=None, output=None):
         regions = regions.reindex(columns=["name", "geometry"]).set_index("name")
         regions_c = regions.dissolve(busmap)
         regions_c.index.name = "name"
+        regions_c["country"] = n.buses.country
         regions_c = regions_c.reset_index()
         regions_c.to_file(getattr(output, which))
 
