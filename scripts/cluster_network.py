@@ -662,16 +662,21 @@ def focus_clustering(
             feature=feature,
         )
 
+    # Compose the two busmaps
+    busmap_out = busmap_out.map(second_busmap)
+
     # Fix up the names of the buses in the latter busmap, so that a
     # node consisting of countries "AA", "BB", "CC" is called
     # "AA_BB_CC" instead of getting some integer name.
-    for agg_node in second_busmap.unique():
-        second_busmap.loc[second_busmap == agg_node] = "_".join(
-            list(second_busmap.loc[second_busmap == agg_node].index)
+    for agg_node in busmap_out.unique():
+        cs = sorted(
+            n.buses.loc[busmap_out.loc[busmap_out == agg_node].index].country.unique()
         )
-
-    # Compose the two busmaps
-    busmap_out = busmap_out.map(second_busmap)
+        if len(cs) == 1:
+            # If it's just one country, give it a more "usual" pypsa-eur name
+            busmap_out.loc[busmap_out == agg_node] = cs[0] + "0 0"
+        else:
+            busmap_out.loc[busmap_out == agg_node] = "_".join(cs)
 
     # Combine all busmaps into one.
     busmap = pd.concat([busmap_in, busmap_neighbours, busmap_out], axis="rows")
