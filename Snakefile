@@ -622,6 +622,23 @@ rule simplify_network:
         "scripts/simplify_network.py"
 
 
+def custom_busmap_input(w):
+    # If a custom busmap is given, we use it:
+    if config["enable"].get("custom_busmap", False):
+        return "data/custom_busmap_elec_s{simpl}_{clusters}.csv"
+    # If a constant weather year is given for clustering and it's not
+    # the present weather year, we use it's busmap.
+    constant_weather_year = config["clustering"].get("constant_weather_year", False)
+    if constant_weather_year and constant_weather_year != w.weather_year:
+        return (
+            "resources/"
+            + RDIR
+            + f"busmap_elec{constant_weather_year}_s{w.simpl}_{w.clusters}.csv"
+        )
+    else:
+        return []
+
+
 rule cluster_network:
     input:
         network="networks/" + RDIR + "elec{weather_year}_s{simpl}.nc",
@@ -632,11 +649,7 @@ rule cluster_network:
         + RDIR
         + "regions_offshore_elec{weather_year}_s{simpl}.geojson",
         busmap=ancient("resources/" + RDIR + "busmap_elec{weather_year}_s{simpl}.csv"),
-        custom_busmap=(
-            "data/custom_busmap_elec_s{simpl}_{clusters}.csv"
-            if config["enable"].get("custom_busmap", False)
-            else []
-        ),
+        custom_busmap=custom_busmap_input,
         tech_costs=COSTS,
     output:
         network="networks/" + RDIR + "elec{weather_year}_s{simpl}_{clusters}.nc",

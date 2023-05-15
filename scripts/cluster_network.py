@@ -298,7 +298,6 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name="cbc"):
     ), f"Number of clusters must be {len(N)} <= n_clusters <= {N.sum()} for this selection of countries."
 
     if focus_weights is not None:
-
         total_focus = sum(list(focus_weights.values()))
 
         assert (
@@ -421,7 +420,6 @@ def busmap_for_n_clusters(
 
     if algorithm == "hac":
         feature = get_feature_for_hac(n, buses_i=n.buses.index, feature=feature)
-        n = fix_country_assignment_for_hac(n)
 
     if (algorithm != "hac") and (feature is not None):
         logger.warning(
@@ -484,7 +482,6 @@ def busmap_for_region(
 
     if algorithm == "hac":
         feature = get_feature_for_hac(n, buses_i=n.buses.index, feature=feature)
-        n = fix_country_assignment_for_hac(n)
 
     if (algorithm != "hac") and (feature is not None):
         logger.warning(
@@ -554,7 +551,6 @@ def clustering_for_n_clusters(
     extended_link_costs=0,
     focus_weights=None,
 ):
-
     bus_strategies, generator_strategies = get_aggregation_strategies(
         aggregation_strategies
     )
@@ -603,7 +599,6 @@ def focus_clustering(
     feature=None,
     extended_link_costs=0,
 ):
-
     bus_strategies, generator_strategies = get_aggregation_strategies(
         aggregation_strategies
     )
@@ -762,12 +757,69 @@ if __name__ == "__main__":
     else:
         n_clusters = int(snakemake.wildcards.clusters)
 
+    # Retrieve some basic parameters needed for the clustering.
+    line_length_factor = snakemake.config["lines"]["length_factor"]
+    Nyears = n.snapshot_weightings.objective.sum() / 8760
+
+    hvac_overhead_cost = load_costs(
+        snakemake.input.tech_costs,
+        snakemake.config["costs"],
+        snakemake.config["electricity"],
+        Nyears,
+    ).at["HVAC overhead", "capital_cost"]
+
+    # Compile the aggregation strategies.
+    aggregation_strategies = snakemake.config["clustering"].get(
+        "aggregation_strategies", {}
+    )
+    # translate str entries of aggregation_strategies to pd.Series functions:
+    aggregation_strategies = {
+        p: {k: getattr(pd.Series, v) for k, v in strategies.items()}
+        for p, strategies in aggregation_strategies.items()
+    }
+
+    # When aggregating countries, simply concatenate the "country"
+    # attributes of the nodes to be aggregated.
+    if "buses" not in aggregation_strategies:
+        aggregation_strategies["buses"] = {}
+    aggregation_strategies["buses"]["country"] = lambda x: "_".join(
+        sorted(list(set(list(x))))
+    )
+
+    cluster_config = snakemake.config.get("clustering", {}).get("cluster_network", {})
+
+    # Fix country assignment, even if we're simply applying a custom busmap
+    if cluster_config.get("algorithm", "hac") == "hac":
+        n = fix_country_assignment_for_hac(n)
+
+    # Now start the actual clustering
     if n_clusters == len(n.buses):
         # Fast-path if no clustering is necessary
         busmap = n.buses.index.to_series()
         linemap = n.lines.index.to_series()
         clustering = pypsa.networkclustering.Clustering(
             n, busmap, linemap, linemap, pd.Series(dtype="O")
+        )
+    if snakemake.input.custom_busmap:
+        # If a custom busmap is given, it overrides the usual clustering
+        custom_busmap = pd.read_csv(
+            snakemake.input.custom_busmap, index_col=0
+        ).squeeze()
+        custom_busmap.index = custom_busmap.index.astype(str)
+        logger.info(f"Imported custom busmap from {snakemake.input.custom_busmap}")
+
+        clustering = clustering_for_n_clusters(
+            n,
+            n_clusters,
+            custom_busmap,
+            aggregate_carriers,
+            line_length_factor,
+            aggregation_strategies,
+            snakemake.config["solving"]["solver"]["name"],
+            cluster_config.get("algorithm", "hac"),
+            cluster_config.get("feature", "solar+onwind-time"),
+            hvac_overhead_cost,
+            focus_weights,
         )
     elif focus_clustering_p:
         # Figure out which countries are in the "in", "neighbours" and
@@ -787,38 +839,6 @@ if __name__ == "__main__":
 
         n_clusters_per_region = {"in": n_in, "neighbours": n_neighbours, "out": n_out}
 
-        # Retrieve some basic parameters needed for the clustering.
-        line_length_factor = snakemake.config["lines"]["length_factor"]
-        Nyears = n.snapshot_weightings.objective.sum() / 8760
-
-        hvac_overhead_cost = load_costs(
-            snakemake.input.tech_costs,
-            snakemake.config["costs"],
-            snakemake.config["electricity"],
-            Nyears,
-        ).at["HVAC overhead", "capital_cost"]
-
-        # Compile the aggregation strategies. This is done as
-        # elsewhere, except for special handling of the "country"
-        # attribute.
-        aggregation_strategies = snakemake.config["clustering"].get(
-            "aggregation_strategies", {}
-        )
-        # translate str entries of aggregation_strategies to pd.Series functions:
-        aggregation_strategies = {
-            p: {k: getattr(pd.Series, v) for k, v in strategies.items()}
-            for p, strategies in aggregation_strategies.items()
-        }
-        # When aggregating countries, simply concatenate the "country"
-        # attributes of the nodes to be aggregated.
-        if "buses" not in aggregation_strategies:
-            aggregation_strategies["buses"] = {}
-        aggregation_strategies["buses"]["country"] = lambda x: "_".join(set(list(x)))
-
-        cluster_config = snakemake.config.get("clustering", {}).get(
-            "cluster_network", {}
-        )
-
         clustering = focus_clustering(
             n,
             regions,
@@ -832,47 +852,11 @@ if __name__ == "__main__":
             hvac_overhead_cost,
         )
     else:
-        line_length_factor = snakemake.config["lines"]["length_factor"]
-        Nyears = n.snapshot_weightings.objective.sum() / 8760
-
-        hvac_overhead_cost = load_costs(
-            snakemake.input.tech_costs,
-            snakemake.config["costs"],
-            snakemake.config["electricity"],
-            Nyears,
-        ).at["HVAC overhead", "capital_cost"]
-
-        def consense(x):
-            v = x.iat[0]
-            assert (
-                x == v
-            ).all() or x.isnull().all(), "The `potential` configuration option must agree for all renewable carriers, for now!"
-            return v
-
-        aggregation_strategies = snakemake.config["clustering"].get(
-            "aggregation_strategies", {}
-        )
-        # translate str entries of aggregation_strategies to pd.Series functions:
-        aggregation_strategies = {
-            p: {k: getattr(pd.Series, v) for k, v in aggregation_strategies[p].items()}
-            for p in aggregation_strategies.keys()
-        }
-
-        custom_busmap = snakemake.config["enable"].get("custom_busmap", False)
-        if custom_busmap:
-            custom_busmap = pd.read_csv(
-                snakemake.input.custom_busmap, index_col=0, squeeze=True
-            )
-            custom_busmap.index = custom_busmap.index.astype(str)
-            logger.info(f"Imported custom busmap from {snakemake.input.custom_busmap}")
-
-        cluster_config = snakemake.config.get("clustering", {}).get(
-            "cluster_network", {}
-        )
+        # This is just the usual clustering
         clustering = clustering_for_n_clusters(
             n,
             n_clusters,
-            custom_busmap,
+            False,  # No custom busmap
             aggregate_carriers,
             line_length_factor,
             aggregation_strategies,
@@ -895,4 +879,6 @@ if __name__ == "__main__":
     ):  # also available: linemap_positive, linemap_negative
         getattr(clustering, attr).to_csv(snakemake.output[attr])
 
-    cluster_regions((clustering.busmap,), snakemake.input, snakemake.output)
+    cluster_regions(
+        clustering.network, (clustering.busmap,), snakemake.input, snakemake.output
+    )
