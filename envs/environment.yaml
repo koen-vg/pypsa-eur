@@ -11,7 +11,6 @@ dependencies:
 - python>=3.8
 - pip
 
-- pypsa>=0.22.0
 - atlite>=0.2.9
 - dask
 
@@ -61,3 +60,4 @@ dependencies:
 - pip:
   - vresutils>=0.3.1
   - tsam>=1.1.0
+  - git+https://github.com/PyPSA/PyPSA.git@be05f3c3467a4be986db129afc820ad2d2032d84
