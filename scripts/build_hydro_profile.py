@@ -141,7 +141,10 @@ def approximate_missing_eia_stats(eia_stats, runoff_fn, countries):
     runoff = pd.read_csv(runoff_fn, index_col=0).T[countries]
 
     # fix ES, PT data points
-    runoff.loc["1978", ["ES", "PT"]] = runoff.loc["1979", ["ES", "PT"]]
+    if "ES" in countries:
+        runoff.loc["1978", "ES"] = runoff.loc["1979", "ES"]
+    if "PT" in countries:
+        runoff.loc["1978", "PT"] = runoff.loc["1979", "PT"]
 
     runoff_eia = runoff.loc[eia_stats.index]
 
@@ -191,7 +194,6 @@ if __name__ == "__main__":
 
     fn = snakemake.input.eia_hydro_generation
     eia_stats = get_eia_annual_hydro_generation(fn, countries)
-
     if config_hydro.get("eia_correct_by_capacity"):
         fn = snakemake.input.eia_hydro_capacity
         correct_eia_stats_by_capacity(eia_stats, fn, countries)
