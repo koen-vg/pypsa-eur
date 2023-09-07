@@ -82,7 +82,7 @@ if config["enable"].get("prepare_links_p_nom", False):
         resources:
             mem_mb=1500,
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/prepare_links_p_nom.py"
 
@@ -116,7 +116,7 @@ if config["enable"].get("retrieve_databundle", True):
         resources:
             mem_mb=1000,
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/retrieve_databundle.py"
 
@@ -149,7 +149,7 @@ if config["enable"].get("retrieve_opsd_load_data", True):
         group:
             "pypsa-eur-init"
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/build_load_data.py"
 
@@ -182,7 +182,7 @@ if config["enable"].get("retrieve_artificial_load_data", False):
         group:
             "pypsa-eur-init"
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/build_artificial_load_data.py"
 
@@ -202,7 +202,7 @@ rule build_powerplants:
     group:
         "pypsa-eur-init"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_powerplants.py"
 
@@ -233,7 +233,7 @@ rule base_network:
     group:
         "pypsa-eur-init"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/base_network.py"
 
@@ -261,7 +261,7 @@ rule build_shapes:
     group:
         "pypsa-eur-init"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_shapes.py"
 
@@ -283,7 +283,7 @@ rule build_bus_regions:
     group:
         "pypsa-eur-init"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_bus_regions.py"
 
@@ -305,7 +305,7 @@ if config["enable"].get("build_cutout", False):
         resources:
             mem_mb=ATLITE_NPROCESSES * 1000,
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/build_cutout.py"
 
@@ -323,7 +323,7 @@ if config["enable"].get("build_cutout", False):
         resources:
             mem_mb=ATLITE_NPROCESSES * 1000,
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/build_cutout.py"
 
@@ -383,7 +383,7 @@ if config["enable"].get("build_natura_raster", False):
         log:
             "logs/" + RDIR + "build_natura_raster.log",
         conda:
-            "envs/environment.yaml"
+            "envs/environment.fixed.yaml"
         script:
             "scripts/build_natura_raster.py"
 
@@ -444,7 +444,7 @@ rule build_ship_raster:
     benchmark:
         "benchmarks/" + RDIR + "build_ship_raster"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_ship_raster.py"
 
@@ -508,7 +508,7 @@ rule build_renewable_profiles:
     wildcard_constraints:
         technology="(?!hydro).*",  # Any technology other than hydro
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_renewable_profiles.py"
 
@@ -544,7 +544,7 @@ rule build_hydro_profile:
         mem_mb=2000,
         runtime=5,  # In minutes
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/build_hydro_profile.py"
 
@@ -585,7 +585,7 @@ rule add_electricity:
     group:
         "pypsa-eur-build"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/add_electricity.py"
 
@@ -624,7 +624,7 @@ rule simplify_network:
     group:
         "pypsa-eur-build"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/simplify_network.py"
 
@@ -675,7 +675,7 @@ rule cluster_network:
     group:
         "pypsa-eur-build"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/cluster_network.py"
 
@@ -703,7 +703,7 @@ rule add_extra_components:
     group:
         "pypsa-eur-build"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/add_extra_components.py"
 
@@ -731,7 +731,7 @@ rule prepare_network:
     group:
         "pypsa-eur-build"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/prepare_network.py"
 
@@ -857,7 +857,7 @@ rule solve_operations_network:
     shadow:
         "minimal"
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/solve_operations_network.py"
 
@@ -881,7 +881,7 @@ rule plot_network:
         + RDIR
         + "plot_network/elec{weather_year}_s{simpl}_{clusters}_ec_l{ll}_{opts}_{attr}_{ext}.log",
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/plot_network.py"
 
@@ -923,7 +923,7 @@ rule make_summary:
     resources:
         mem_mb=1500,
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/make_summary.py"
 
@@ -945,7 +945,7 @@ rule plot_summary:
     resources:
         mem_mb=1500,
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/plot_summary.py"
 
@@ -978,6 +978,6 @@ rule plot_p_nom_max:
     resources:
         mem_mb=1500,
     conda:
-        "envs/environment.yaml"
+        "envs/environment.fixed.yaml"
     script:
         "scripts/plot_p_nom_max.py"
