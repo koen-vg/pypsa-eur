@@ -754,6 +754,8 @@ def estimate_renewable_capacities(n, year, tech_map, expansion_limit, countries)
     )
 
     for ppm_technology, techs in tech_map.items():
+        if ppm_technology not in capacities.index:
+            continue
         tech_i = n.generators.query("carrier in @techs").index
         stats = capacities.loc[ppm_technology].reindex(countries, fill_value=0.0)
         country = n.generators.bus[tech_i].map(n.buses.country)
