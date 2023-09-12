@@ -173,7 +173,8 @@ def plot_map(
     line_widths = line_widths.replace(line_lower_threshold, 0)
     link_widths = link_widths.replace(line_lower_threshold, 0)
 
-    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.EqualEarth()})
+    proj = ccrs.Orthographic(central_longitude=10, central_latitude=50)
+    fig, ax = plt.subplots(subplot_kw={"projection": proj})
     fig.set_size_inches(7, 6)
 
     n.plot(
@@ -332,7 +333,7 @@ def plot_h2_map(network, regions):
 
         h2_retro["index_orig"] = h2_retro.index
         h2_retro.index = h2_retro.apply(
-            lambda x: f"H2 pipeline {x.bus0.replace(' H2', '')} -> {x.bus1.replace(' H2', '')}",
+            lambda x: f"H2 pipeline {str(x.bus0).replace(' H2', '')} -> {str(x.bus1).replace(' H2', '')}",
             axis=1,
         )
 
@@ -365,7 +366,7 @@ def plot_h2_map(network, regions):
     n.links.bus0 = n.links.bus0.str.replace(" H2", "")
     n.links.bus1 = n.links.bus1.str.replace(" H2", "")
 
-    proj = ccrs.EqualEarth()
+    proj = ccrs.Orthographic(central_longitude=10, central_latitude=50)
     regions = regions.to_crs(proj.proj4_init)
 
     fig, ax = plt.subplots(figsize=(7, 6), subplot_kw={"projection": proj})
@@ -575,7 +576,8 @@ def plot_ch4_map(network):
         "biogas": "seagreen",
     }
 
-    fig, ax = plt.subplots(figsize=(7, 6), subplot_kw={"projection": ccrs.EqualEarth()})
+    proj = ccrs.Orthographic(central_longitude=10, central_latitude=50)
+    fig, ax = plt.subplots(figsize=(7, 6), subplot_kw={"projection": proj})
 
     n.plot(
         bus_sizes=bus_sizes,
@@ -686,7 +688,8 @@ def plot_map_without(network):
     # Drop non-electric buses so they don't clutter the plot
     n.buses.drop(n.buses.index[n.buses.carrier != "AC"], inplace=True)
 
-    fig, ax = plt.subplots(figsize=(7, 6), subplot_kw={"projection": ccrs.EqualEarth()})
+    proj = ccrs.Orthographic(central_longitude=10, central_latitude=50)
+    fig, ax = plt.subplots(figsize=(7, 6), subplot_kw={"projection": proj})
 
     # PDF has minimum width, so set these to zero
     line_lower_threshold = 200.0
