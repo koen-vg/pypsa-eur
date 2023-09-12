@@ -569,6 +569,45 @@ def add_pipe_retrofit_constraint(n):
     n.model.add_constraints(lhs == rhs, name="Link-pipe_retrofit")
 
 
+def add_continental_hydrogen_demand(n):
+    """Add constraint to fill hydrogen demand store by end of period"""
+    e = n.model["Store-e"]
+    hydrogen_final_DE = e.sel(
+        {"Store": "Continental hydrogen demand store", "snapshot": n.snapshots[-1]}
+    )
+    MWh_per_tonne_H2 = 33
+    n.model.add_constraints(
+        hydrogen_final_DE >= n.stores.at["Continental hydrogen demand store", "e_nom"],
+        name="Continental hydrogen demand",
+    )
+
+
+def add_EU_import_constraint(n):
+    """Ensure that NO+SE export a fixed amount of hydrogen"""
+    MWh_per_tonne_H2 = 33
+    H2_demand = 10e6  # in tonnes
+
+    export_links_pos = n.links.loc[
+        n.links.carrier.str.contains("H2")
+        & n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO", "SE"])
+        & n.links.bus1.map(n.buses.location)
+        .map(n.buses.country)
+        .isin(["NL", "DE", "DK"])
+    ].index
+    export_links_neg = n.links.loc[
+        n.links.carrier.str.contains("H2")
+        & n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO", "SE"])
+        & n.links.bus0.map(n.buses.location)
+        .map(n.buses.country)
+        .isin(["NL", "DE", "DK"])
+    ].index
+    l_pos = n.model["Link-p"].sel({"Link": export_links_pos}).sum().sum()
+    l_neg = n.model["Link-p"].sel({"Link": export_links_neg}).sum().sum()
+    n.model.add_constraints(
+        l_pos - l_neg >= H2_demand * MWh_per_tonne_H2, name="Hydrogen export constraint"
+    )
+
+
 def extra_functionality(n, snapshots):
     """
     Collects supplementary constraints which will be passed to
@@ -594,6 +633,9 @@ def extra_functionality(n, snapshots):
             add_EQ_constraints(n, o)
     add_battery_constraints(n)
     add_pipe_retrofit_constraint(n)
+
+    add_continental_hydrogen_demand(n)
+    add_EU_import_constraint(n)
 
 
 def solve_network(n, config, solving, opts="", **kwargs):

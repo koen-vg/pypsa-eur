@@ -3280,6 +3280,41 @@ def set_temporal_aggregation(n, opts, solver_name):
     return n
 
 
+def add_continental_hydrogen_demand(n):
+    """Hardcode 10Mt hydrogen demand in Continental Europe"""
+    MWh_per_tonne_H2 = 33
+    H2_demand = 10e6  # in tonnes
+
+    n.add("Bus", "Continental hydrogen demand", carrier="H2")
+    n.add(
+        "Store",
+        "Continental hydrogen demand store",
+        bus="Continental hydrogen demand",
+        e_nom_extendable=False,
+        e_nom=H2_demand * MWh_per_tonne_H2,
+        e_cyclic=False,
+        carrier="H2 Store",
+        capital_cost=0,
+    )
+
+    continental_H2_buses = n.buses.loc[
+        (n.buses.carrier == "H2")
+        & (n.buses.location.map(n.buses.country).isin(["NL", "DE", "DK"]))
+    ].index
+
+    for s in continental_H2_buses:
+        n.add(
+            "Link",
+            "Continental demand link " + s,
+            bus0=s,
+            bus1="Continental hydrogen demand",
+            carrier="H2",
+            p_nom_extendable=True,
+            capital_cost=0,
+            p_min_pu=0,  # Only allow one-directional flow
+        )
+
+
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake
@@ -3452,6 +3487,8 @@ if __name__ == "__main__":
 
     if options.get("cluster_heat_buses", False) and not first_year_myopic:
         cluster_heat_buses(n)
+
+    add_continental_hydrogen_demand(n)
 
     n.meta = dict(snakemake.config, **dict(wildcards=dict(snakemake.wildcards)))
 
