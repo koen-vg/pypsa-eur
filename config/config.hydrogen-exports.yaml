@@ -1,0 +1,80 @@
+
+
+run:
+    name: "hydrogen-exports"
+    disable_progressbar: true
+
+foresight: "myopic"
+
+scenario:
+    simpl:
+    - ""
+    clusters:
+    - "15"
+    ll:
+    - "c1.1"
+    opts:
+    - ""
+    sector_opts:
+    - "500SEG-T-H"
+    planning_horizons:
+    - 2030
+
+countries: ["NO", "SE", "NL", "DE", "DK"]
+
+focus_weights:
+    "NO": 0.69
+    "SE": 0.3
+    "NL": 0.0033
+    "DE": 0.0033
+    "DK": 0.0033
+
+co2_budget:
+    2020: 0.9  # TODO: what were emissions actually like in 2020 compared to 1990 for NO+SE?
+    2030: 0.5
+
+electricity:
+    # Only select powerplants phased out after 2022. Note that this is
+    # only relevant for the initial baseyear network.
+    powerplants_filter: (DateOut >= 2022 or DateOut != DateOut)
+
+    estimate_renewable_capacities:
+        year: 2022
+
+    # Sources for baseline emissions 1990:
+    # - https://energiogklima.no/klimavakten/norges-utslipp/
+    # - https://www.naturvardsverket.se/data-och-statistik/klimat/sveriges-utslapp-och-upptag-av-vaxthusgaser/
+    co2base: 122.8e+6
+
+
+atlite:
+    cutouts:
+        base:
+            module: era5
+
+costs:
+    year: 2030
+
+sector:
+    regional_co2_sequestration_potential:
+        enable: true
+    gas_network: true
+    H2_retrofit: true
+    conventional_generation:
+        OCGT: gas
+
+existing_capacities:
+    conventional_carriers:
+    - lignite
+    - coal
+    - oil
+    - uranium
+
+clustering:
+    simplify_network:
+        algorithm: "hac"
+        feature: "onwind-time"
+    cluster_network:
+        algorithm: "hac"
+        feature: "onwind-time"
+        
