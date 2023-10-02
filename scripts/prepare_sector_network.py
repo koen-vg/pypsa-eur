@@ -17,14 +17,15 @@ import numpy as np
 import pandas as pd
 import pypsa
 import xarray as xr
-from _helpers import generate_periodic_profiles, update_config_with_sector_opts
-from add_electricity import calculate_annuity, sanitize_carriers
-from build_energy_totals import build_co2_totals, build_eea_co2, build_eurostat_co2
 from networkx.algorithms import complement
 from networkx.algorithms.connectivity.edge_augmentation import k_edge_augmentation
 from pypsa.geo import haversine_pts
 from pypsa.io import import_components_from_dataframe
 from scipy.stats import beta
+
+from _helpers import generate_periodic_profiles, update_config_with_sector_opts
+from add_electricity import calculate_annuity, sanitize_carriers
+from build_energy_totals import build_co2_totals, build_eea_co2, build_eurostat_co2
 
 logger = logging.getLogger(__name__)
 
@@ -2713,22 +2714,23 @@ def add_industry(n, costs):
                 lifetime=costs.at["decentral oil boiler", "lifetime"],
             )
 
-    n.madd(
-        "Link",
-        nodes + " Fischer-Tropsch",
-        bus0=nodes + " H2",
-        bus1=spatial.oil.nodes,
-        bus2=spatial.co2.nodes,
-        carrier="Fischer-Tropsch",
-        efficiency=costs.at["Fischer-Tropsch", "efficiency"],
-        capital_cost=costs.at["Fischer-Tropsch", "fixed"]
-        * costs.at["Fischer-Tropsch", "efficiency"],  # EUR/MW_H2/a
-        efficiency2=-costs.at["oil", "CO2 intensity"]
-        * costs.at["Fischer-Tropsch", "efficiency"],
-        p_nom_extendable=True,
-        p_min_pu=options.get("min_part_load_fischer_tropsch", 0),
-        lifetime=costs.at["Fischer-Tropsch", "lifetime"],
-    )
+    if options.get("fischer_tropsch", True):
+        n.madd(
+            "Link",
+            nodes + " Fischer-Tropsch",
+            bus0=nodes + " H2",
+            bus1=spatial.oil.nodes,
+            bus2=spatial.co2.nodes,
+            carrier="Fischer-Tropsch",
+            efficiency=costs.at["Fischer-Tropsch", "efficiency"],
+            capital_cost=costs.at["Fischer-Tropsch", "fixed"]
+            * costs.at["Fischer-Tropsch", "efficiency"],  # EUR/MW_H2/a
+            efficiency2=-costs.at["oil", "CO2 intensity"]
+            * costs.at["Fischer-Tropsch", "efficiency"],
+            p_nom_extendable=True,
+            p_min_pu=options.get("min_part_load_fischer_tropsch", 0),
+            lifetime=costs.at["Fischer-Tropsch", "lifetime"],
+        )
 
     demand_factor = options.get("HVC_demand_factor", 1)
     p_set = demand_factor * industrial_demand.loc[nodes, "naphtha"].sum() / nhours
@@ -2905,7 +2907,9 @@ def add_waste_heat(n):
         urban_central = urban_central.str[: -len(" urban central heat")]
 
         # TODO what is the 0.95 and should it be a config option?
-        if options["use_fischer_tropsch_waste_heat"]:
+        if options["use_fischer_tropsch_waste_heat"] and options.get(
+            "fischer_tropsch", True
+        ):
             n.links.loc[urban_central + " Fischer-Tropsch", "bus3"] = (
                 urban_central + " urban central heat"
             )
