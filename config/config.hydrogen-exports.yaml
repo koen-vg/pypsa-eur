@@ -10,13 +10,29 @@ scenario:
     simpl:
     - ""
     clusters:
-    - "15"
+    - "45"
+    # - "30"
     ll:
     - "c1.1"
     opts:
     - ""
     sector_opts:
-    - "500SEG-T-H"
+    # - "1500SEG-T-H-B-I-A-Co2L0.5-EXPORT10"
+    # - "1500SEG-T-H-B-I-A-Co2L0.4-EXPORT10"
+    # - "1500SEG-T-H-B-I-A-Co2L0.3-EXPORT10"
+    # - "1500SEG-T-H-B-I-A-Co2L0.2-EXPORT10"
+    # - "1500SEG-T-H-B-I-A-Co2L0.5-EXPORT10north"
+    # - "1500SEG-T-H-B-I-A-Co2L0.4-EXPORT10north"
+    # - "1500SEG-T-H-B-I-A-Co2L0.3-EXPORT10north"
+    # - "1500SEG-T-H-B-I-A-Co2L0.2-EXPORT10north"
+    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT10"
+    - "100SEG-T-H-B-I-A-Co2L0.47-EXPORT10"
+    - "100SEG-T-H-B-I-A-Co2L0.43-EXPORT10"
+    - "100SEG-T-H-B-I-A-Co2L0.4-EXPORT10"
+    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT10north"
+    - "100SEG-T-H-B-I-A-Co2L0.47-EXPORT10north"
+    - "100SEG-T-H-B-I-A-Co2L0.43-EXPORT10north"
+    - "100SEG-T-H-B-I-A-Co2L0.4-EXPORT10north"
     planning_horizons:
     - 2030
 
@@ -29,23 +45,15 @@ focus_weights:
     "DE": 0.0033
     "DK": 0.0033
 
-co2_budget:
-    2020: 0.9  # TODO: what were emissions actually like in 2020 compared to 1990 for NO+SE?
-    2030: 0.5
-
 electricity:
     # Only select powerplants phased out after 2022. Note that this is
-    # only relevant for the initial baseyear network.
+    # only relevant for the initial network; for the 2030 planning
+    # horizon network (at add_brownfield) powerplants that are
+    # decommissioned by 2030 are removed anyway.
     powerplants_filter: (DateOut >= 2022 or DateOut != DateOut)
 
     estimate_renewable_capacities:
         year: 2022
-
-    # Sources for baseline emissions 1990:
-    # - https://energiogklima.no/klimavakten/norges-utslipp/
-    # - https://www.naturvardsverket.se/data-och-statistik/klimat/sveriges-utslapp-och-upptag-av-vaxthusgaser/
-    co2base: 122.8e+6
-
 
 atlite:
     cutouts:
@@ -60,6 +68,13 @@ sector:
         enable: true
     gas_network: true
     H2_retrofit: true
+    co2_spatial: false
+    co2network: false
+    methanation: false
+    dac: false
+    ammonia: true
+    fischer_tropsch: false
+    biomass_spatial: true
     conventional_generation:
         OCGT: gas
 
@@ -77,4 +92,15 @@ clustering:
     cluster_network:
         algorithm: "hac"
         feature: "onwind-time"
+
+solving:
+    solver_options:
+        gurobi-default:
+            threads: 2
         
+plotting:
+    map:
+        boundaries: [0, 25, 45, 71]
+    eu_node_location:
+        x: 0.
+        y: 60.
