@@ -20,9 +20,10 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 import pypsa
+from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
+
 from make_summary import assign_carriers
 from plot_summary import preferred_order, rename_techs
-from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
 
 plt.style.use(["ggplot", "matplotlibrc"])
 
@@ -86,15 +87,23 @@ def plot_map(
 
         df_c["nice_group"] = df_c.carrier.map(rename_techs_tyndp)
 
-        attr = "e_nom_opt" if comp == "stores" else "p_nom_opt"
-
-        costs_c = (
-            (df_c.capital_cost * df_c[attr])
+        attr1 = "e_nom" if comp == "stores" else "p_nom"
+        attr2 = "e_nom_opt" if comp == "stores" else "p_nom_opt"
+        costs_c1 = (
+            (df_c.capital_cost * df_c[attr1])
             .groupby([df_c.location, df_c.nice_group])
             .sum()
             .unstack()
             .fillna(0.0)
         )
+        costs_c2 = (
+            (df_c.capital_cost * df_c[attr2])
+            .groupby([df_c.location, df_c.nice_group])
+            .sum()
+            .unstack()
+            .fillna(0.0)
+        )
+        costs_c = costs_c1.where(costs_c1 > costs_c2, costs_c2)
         costs = pd.concat([costs, costs_c], axis=1)
 
         logger.debug(f"{comp}, {costs}")
