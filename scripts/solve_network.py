@@ -33,6 +33,7 @@ import numpy as np
 import pandas as pd
 import pypsa
 import xarray as xr
+
 from _helpers import configure_logging, update_config_with_sector_opts
 
 logger = logging.getLogger(__name__)
@@ -582,30 +583,74 @@ def add_continental_hydrogen_demand(n):
     )
 
 
-def add_EU_import_constraint(n):
-    """Ensure that NO+SE export a fixed amount of hydrogen"""
+def add_export_constraint(n, level_region):
+    """Ensure that Norway exports a fixed amount of hydrogen"""
     MWh_per_tonne_H2 = 33
-    H2_demand = 10e6  # in tonnes
+
+    # Parse the "level_region" argument, which is of the form "<float><str>"
+    # where the initial float is the number of tonnes of H2 to export, and the
+    # string is either empty or "north" to describe from which region to export.
+    float_regex = "[0-9]*\.?[0-9]+"
+    level = re.search(float_regex, level_region)[0]
+    region = level_region.lstrip(level)
 
     export_links_pos = n.links.loc[
         n.links.carrier.str.contains("H2")
-        & n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO", "SE"])
-        & n.links.bus1.map(n.buses.location)
-        .map(n.buses.country)
-        .isin(["NL", "DE", "DK"])
+        & n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
+        & ~n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
     ].index
     export_links_neg = n.links.loc[
         n.links.carrier.str.contains("H2")
-        & n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO", "SE"])
-        & n.links.bus0.map(n.buses.location)
-        .map(n.buses.country)
-        .isin(["NL", "DE", "DK"])
+        & n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
+        & ~n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
     ].index
-    l_pos = n.model["Link-p"].sel({"Link": export_links_pos}).sum().sum()
-    l_neg = n.model["Link-p"].sel({"Link": export_links_neg}).sum().sum()
+
+    l_pos = (
+        n.model["Link-p"].sel({"Link": export_links_pos}).sum("Link")
+        * n.snapshot_weightings.generators
+    ).sum()
+    l_neg = (
+        n.model["Link-p"].sel({"Link": export_links_neg}).sum("Link")
+        * n.snapshot_weightings.generators
+    ).sum()
     n.model.add_constraints(
-        l_pos - l_neg >= H2_demand * MWh_per_tonne_H2, name="Hydrogen export constraint"
+        l_pos - l_neg >= float(level) * 1e6 * MWh_per_tonne_H2,
+        name="Hydrogen export constraint",
     )
+
+    if region == "north":
+        # Add an additional constraint for links going out of the north of Norway
+        export_links_pos = n.links.loc[
+            n.links.carrier.str.contains("H2")
+            & n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
+            & (n.links.bus0.map(n.buses.location).map(n.buses.y) > 65)
+            & ~(
+                n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
+                & (n.links.bus1.map(n.buses.location).map(n.buses.y) > 65)
+            )
+        ].index
+        export_links_neg = n.links.loc[
+            n.links.carrier.str.contains("H2")
+            & n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
+            & (n.links.bus1.map(n.buses.location).map(n.buses.y) > 65)
+            & ~(
+                n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
+                & (n.links.bus0.map(n.buses.location).map(n.buses.y) > 65)
+            )
+        ].index
+
+        l_pos = (
+            n.model["Link-p"].sel({"Link": export_links_pos}).sum("Link")
+            * n.snapshot_weightings.generators
+        ).sum()
+        l_neg = (
+            n.model["Link-p"].sel({"Link": export_links_neg}).sum("Link")
+            * n.snapshot_weightings.generators
+        ).sum()
+        n.model.add_constraints(
+            l_pos - l_neg >= float(level) * 1e6 * MWh_per_tonne_H2,
+            name="Hydrogen export constraint (north)",
+        )
 
 
 def extra_functionality(n, snapshots):
@@ -631,11 +676,15 @@ def extra_functionality(n, snapshots):
     for o in opts:
         if "EQ" in o:
             add_EQ_constraints(n, o)
+
+        if "EXPORT" in o:
+            level_region = o.lstrip("EXPORT")
+            add_export_constraint(n, level_region)
+
     add_battery_constraints(n)
     add_pipe_retrofit_constraint(n)
 
     add_continental_hydrogen_demand(n)
-    add_EU_import_constraint(n)
 
 
 def solve_network(n, config, solving, opts="", **kwargs):
