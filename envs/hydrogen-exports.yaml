@@ -54,6 +54,7 @@ dependencies:
 - cartopy
 - descartes
 - rasterio!=1.2.10
+- searoute
 
 
 - pip:

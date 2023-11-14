@@ -16,6 +16,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import pypsa
+import searoute as sr
 import xarray as xr
 from networkx.algorithms import complement
 from networkx.algorithms.connectivity.edge_augmentation import k_edge_augmentation
@@ -3320,6 +3321,51 @@ def add_continental_hydrogen_demand(n):
         )
 
 
+def add_norwegian_hydrogen_exports(n, costs):
+    """Add three export links from Norway to continental Europe, here Germany."""
+
+    export_locations = {
+        "stavanger": (58.97, 5.73),
+        "trondheim": (63.44, 10.40),
+        "tromsø": (69.64, 18.95),
+    }
+
+    import_location = (53.54, 8.54)  # Bremerhaven
+
+    buses_norway = n.buses.index[n.buses.country == "NO"]
+
+    # For each export location, find the norwegian bus closest to it (x and y coords for buses stored in n.buses.x and n.buses.y)
+    export_buses = {}
+    for location, coords in export_locations.items():
+        # Compute distance in a simple way (not great arc distance).
+        # Note that x and y for coords is flipped, i.e. (lat, lon) is
+        # like (y, x).
+        distances_sq = (n.buses.x[buses_norway] - coords[1]) ** 2 + (
+            n.buses.y[buses_norway] - coords[0]
+        ) ** 2
+        export_buses[location] = buses_norway[distances_sq.argmin()]
+
+    # For the continental bus, choose the first bus located in Germany
+    bus_continental_europe = n.buses.index[n.buses.country == "DE"][0]
+
+    # For each export location, add a link from the export bus to the continental bus
+    for location, bus in export_buses.items():
+        d = sr.searoute(export_locations[location], import_location).properties[
+            "length"
+        ]
+        n.add(
+            "Link",
+            f"Norwegian hydrogen export {location}",
+            bus0=bus + " H2",
+            bus1=bus_continental_europe + " H2",
+            carrier="H2 export",
+            p_nom_extendable=True,
+            capital_cost=800000,  # 800 EUR / kW cost of processing the hydrogen for export
+            efficiency=0.7,  # 70% efficiency of processing the hydrogen for export
+            marginal_cost=1.0 * d / 1000,  # 1 EUR / MWh / 1000km
+        )
+
+
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake
@@ -3432,6 +3478,23 @@ if __name__ == "__main__":
 
     if options["allam_cycle"]:
         add_allam(n, costs)
+
+    if options["norwegian_hydrogen_exports"]:
+        add_norwegian_hydrogen_exports(n, costs)
+
+    for o in opts:
+        if "EXPORT" in o:
+            level_region = o.lstrip("EXPORT")
+            # Parse the above, which is of the form "<float><str>"
+            # where the initial float is the number of tonnes of H2 to
+            # export, and the string is either empty or "north" to
+            # describe from which region to export.
+            float_regex = "[0-9]*\.?[0-9]+"
+            level = re.search(float_regex, level_region)[0]  # Level in Mt H2
+            region = level_region.lstrip(level)
+            level = float(level) * 1e6 * MWh_per_tonne_H2  # Level in MWh
+
+            add_continental_hydrogen_demand(n, level)
 
     solver_name = snakemake.config["solving"]["solver"]["name"]
     n = set_temporal_aggregation(n, opts, solver_name)
