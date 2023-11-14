@@ -17,14 +17,7 @@ scenario:
     opts:
     - ""
     sector_opts:
-    # - "1500SEG-T-H-B-I-A-Co2L0.5-EXPORT10"
-    # - "1500SEG-T-H-B-I-A-Co2L0.4-EXPORT10"
-    # - "1500SEG-T-H-B-I-A-Co2L0.3-EXPORT10"
-    # - "1500SEG-T-H-B-I-A-Co2L0.2-EXPORT10"
-    # - "1500SEG-T-H-B-I-A-Co2L0.5-EXPORT10north"
-    # - "1500SEG-T-H-B-I-A-Co2L0.4-EXPORT10north"
-    # - "1500SEG-T-H-B-I-A-Co2L0.3-EXPORT10north"
-    # - "1500SEG-T-H-B-I-A-Co2L0.2-EXPORT10north"
+    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT1"
     - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT2"
     - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT3"
     - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT4"
@@ -99,7 +92,10 @@ solving:
         
 plotting:
     map:
-        boundaries: [0, 25, 45, 71]
+        # Whole region:
+        # boundaries: [0, 25, 45, 71]
+        # Just Norway:
+        boundaries: [0, 20, 57, 71]
     eu_node_location:
         x: 0.
         y: 60.
