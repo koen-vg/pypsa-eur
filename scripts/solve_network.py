@@ -40,6 +40,8 @@ logger = logging.getLogger(__name__)
 pypsa.pf.logger.setLevel(logging.WARNING)
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
+MWh_per_tonne_H2 = 33
+
 
 def add_land_use_constraint(n, planning_horizons, config):
     if "m" in snakemake.wildcards.clusters:
@@ -576,24 +578,16 @@ def add_continental_hydrogen_demand(n):
     hydrogen_final_DE = e.sel(
         {"Store": "Continental hydrogen demand store", "snapshot": n.snapshots[-1]}
     )
-    MWh_per_tonne_H2 = 33
     n.model.add_constraints(
         hydrogen_final_DE >= n.stores.at["Continental hydrogen demand store", "e_nom"],
         name="Continental hydrogen demand",
     )
 
 
-def add_export_constraint(n, level_region):
-    """Ensure that Norway exports a fixed amount of hydrogen"""
-    MWh_per_tonne_H2 = 33
+def add_export_constraint(n, level, region):
+    """Ensure that Norway exports a fixed amount of hydrogen
 
-    # Parse the "level_region" argument, which is of the form "<float><str>"
-    # where the initial float is the number of tonnes of H2 to export, and the
-    # string is either empty or "north" to describe from which region to export.
-    float_regex = "[0-9]*\.?[0-9]+"
-    level = re.search(float_regex, level_region)[0]
-    region = level_region.lstrip(level)
-
+    'level' is the total yearly H2 export amount in MWh."""
     export_links_pos = n.links.loc[
         n.links.carrier.str.contains("H2")
         & n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
@@ -606,15 +600,21 @@ def add_export_constraint(n, level_region):
     ].index
 
     l_pos = (
-        n.model["Link-p"].sel({"Link": export_links_pos}).sum("Link")
+        (
+            n.model["Link-p"].sel({"Link": export_links_pos})
+            * n.links.loc[export_links_pos, "efficiency"]
+        ).sum("Link")
         * n.snapshot_weightings.generators
     ).sum()
     l_neg = (
-        n.model["Link-p"].sel({"Link": export_links_neg}).sum("Link")
+        (
+            n.model["Link-p"].sel({"Link": export_links_neg})
+            * n.links.loc[export_links_neg, "efficiency"]
+        ).sum("Link")
         * n.snapshot_weightings.generators
     ).sum()
     n.model.add_constraints(
-        l_pos - l_neg >= float(level) * 1e6 * MWh_per_tonne_H2,
+        l_pos - l_neg >= level,
         name="Hydrogen export constraint",
     )
 
@@ -640,17 +640,85 @@ def add_export_constraint(n, level_region):
         ].index
 
         l_pos = (
-            n.model["Link-p"].sel({"Link": export_links_pos}).sum("Link")
+            (
+                n.model["Link-p"].sel({"Link": export_links_pos})
+                * n.links.loc[export_links_pos, "efficiency"]
+            ).sum("Link")
             * n.snapshot_weightings.generators
         ).sum()
         l_neg = (
-            n.model["Link-p"].sel({"Link": export_links_neg}).sum("Link")
+            (
+                n.model["Link-p"].sel({"Link": export_links_neg})
+                * n.links.loc[export_links_neg, "efficiency"]
+            ).sum("Link")
             * n.snapshot_weightings.generators
         ).sum()
         n.model.add_constraints(
-            l_pos - l_neg >= float(level) * 1e6 * MWh_per_tonne_H2,
+            l_pos - l_neg >= level,
             name="Hydrogen export constraint (north)",
         )
+
+    # Finally, add a constraint ensuring that Norway doesn't become a
+    # net electricity importer.
+
+    export_ac_pos = n.lines.loc[
+        n.lines.bus0.map(n.buses.country).isin(["NO"])
+        & ~n.lines.bus1.map(n.buses.country).isin(["NO"])
+    ].index
+    export_ac_neg = n.lines.loc[
+        n.lines.bus1.map(n.buses.country).isin(["NO"])
+        & ~n.lines.bus0.map(n.buses.country).isin(["NO"])
+    ].index
+    export_dc_pos = n.links.loc[
+        (n.links.carrier == "DC")
+        & n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
+        & ~n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
+    ].index
+    export_dc_neg = n.links.loc[
+        (n.links.carrier == "DC")
+        & n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
+        & ~n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
+    ].index
+
+    elec_export = (
+        (
+            (
+                n.model["Line-s"].sel({"Line": export_ac_pos})
+                - n.model["Line-s"].sel({"Line": export_ac_neg})
+            ).sum("Line")
+            + (
+                n.model["Link-p"].sel({"Link": export_dc_pos})
+                - n.model["Link-p"].sel({"Link": export_dc_neg})
+            ).sum("Link")
+        )
+        * n.snapshot_weightings.generators
+    ).sum()
+    n.model.add_constraints(elec_export >= 0, name="Norway net electricity export")
+
+
+def add_norwegian_offwind_minimum_gen(n):
+    """Add a minimum total Norwegian offshore wind production"""
+    offwind_NO_gens = n.generators.loc[
+        n.generators.carrier.str.contains("offwind")
+        & n.generators.bus.map(n.buses.country == "NO")
+    ].index
+    p = (
+        n.model["Generator-p"].sel(Generator=offwind_NO_gens).sum("Generator")
+        * n.snapshot_weightings.generators
+    ).sum()
+
+    electrolysis_NO = n.links.loc[
+        (n.links.carrier == "H2 Electrolysis") & (n.links.bus0.str.startswith("NO"))
+    ].index
+    e = (
+        n.model["Link-p"].sel(Link=electrolysis_NO).sum("Link")
+        * n.snapshot_weightings.generators
+    ).sum()
+
+    n.model.add_constraints(
+        p >= e,
+        name="NO offwind min",
+    )
 
 
 def extra_functionality(n, snapshots):
@@ -679,7 +747,19 @@ def extra_functionality(n, snapshots):
 
         if "EXPORT" in o:
             level_region = o.lstrip("EXPORT")
-            add_export_constraint(n, level_region)
+            # Parse the above, which is of the form "<float><str>"
+            # where the initial float is the number of tonnes of H2 to
+            # export, and the string is either empty or "north" to
+            # describe from which region to export.
+            float_regex = "[0-9]*\.?[0-9]+"
+            level = re.search(float_regex, level_region)[0]  # Level in Mt H2
+            region = level_region.lstrip(level)
+            level = float(level) * 1e6 * MWh_per_tonne_H2  # Level in MWh
+
+            add_export_constraint(n, level, region)
+
+            if "offwind" in opts:
+                add_norwegian_offwind_minimum_gen(n)
 
     add_battery_constraints(n)
     add_pipe_retrofit_constraint(n)
