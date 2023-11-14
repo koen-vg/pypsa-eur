@@ -1,7 +1,7 @@
 
 
 run:
-    name: "hydrogen-exports"
+    name: "scenario_A"
     disable_progressbar: true
 
 foresight: "myopic"
@@ -25,14 +25,7 @@ scenario:
     # - "1500SEG-T-H-B-I-A-Co2L0.4-EXPORT10north"
     # - "1500SEG-T-H-B-I-A-Co2L0.3-EXPORT10north"
     # - "1500SEG-T-H-B-I-A-Co2L0.2-EXPORT10north"
-    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT10"
-    - "100SEG-T-H-B-I-A-Co2L0.47-EXPORT10"
-    - "100SEG-T-H-B-I-A-Co2L0.43-EXPORT10"
-    - "100SEG-T-H-B-I-A-Co2L0.4-EXPORT10"
-    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT10north"
-    - "100SEG-T-H-B-I-A-Co2L0.47-EXPORT10north"
-    - "100SEG-T-H-B-I-A-Co2L0.43-EXPORT10north"
-    - "100SEG-T-H-B-I-A-Co2L0.4-EXPORT10north"
+    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT2"
     planning_horizons:
     - 2030
 
@@ -64,12 +57,16 @@ costs:
     year: 2030
 
 sector:
+    norwegian_hydrogen_exports: true
     regional_co2_sequestration_potential:
         enable: true
     gas_network: true
-    H2_retrofit: true
+    H2_retrofit: false
+    H2_network: false
     co2_spatial: false
     co2network: false
+    SMR: false
+    SMR_cc: true
     methanation: false
     dac: false
     ammonia: true
@@ -104,3 +101,5 @@ plotting:
     eu_node_location:
         x: 0.
         y: 60.
+    tech_colors:
+        H2 export: '#f081dc'
