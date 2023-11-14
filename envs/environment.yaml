@@ -6,6 +6,7 @@ name: pypsa-eur
 channels:
 - conda-forge
 - bioconda
+- gurobi
 dependencies:
 - python>=3.8
 - pip
@@ -44,6 +45,7 @@ dependencies:
 - tabula-py
 - pyxlsb
 - graphviz
+- gurobi
 
   # Keep in conda environment when calling ipython
 - ipython
@@ -52,8 +54,10 @@ dependencies:
 - cartopy
 - descartes
 - rasterio!=1.2.10
+- searoute
 
 
 - pip:
   - tsam>=1.1.0
   - pypsa>=0.25.1
+  - cffi    # Shouldn't need this but not having this causes a bug
