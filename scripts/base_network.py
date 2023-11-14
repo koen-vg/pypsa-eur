@@ -514,6 +514,12 @@ def _set_countries_and_substations(n, config, country_shapes, offshore_shapes):
     onshore_b = pd.Series(False, buses.index)
     offshore_b = pd.Series(False, buses.index)
 
+    # With recent pandas versions, we need to initialise specifically
+    # to a None value to get a column with `object` dtype that has
+    # null values. If initialised with a string, the default value of
+    # the column is the string "na".
+    buses.loc[:, "country"] = None
+
     for country in countries:
         onshore_shape = country_shapes[country]
         onshore_country_b = buses_in_shape(onshore_shape)
