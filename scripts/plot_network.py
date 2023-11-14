@@ -1131,9 +1131,9 @@ if __name__ == "__main__":
             transmission=False,
         )
 
-        plot_h2_map(n, regions)
-        plot_ch4_map(n)
-        plot_map_without(n)
+        # plot_h2_map(n, regions)
+        # plot_ch4_map(n)
+        # plot_map_without(n)
 
     # plot_series(n, carrier="AC", name=suffix)
     # plot_series(n, carrier="heat", name=suffix)
