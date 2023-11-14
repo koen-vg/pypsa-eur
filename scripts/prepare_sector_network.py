@@ -393,7 +393,7 @@ def update_wind_solar_costs(n, costs):
     clustermaps = busmap_s.map(busmap)
 
     # code adapted from pypsa-eur/scripts/add_electricity.py
-    for connection in ["dc", "ac"]:
+    for connection in ["dc", "ac", "float"]:
         tech = "offwind-" + connection
         profile = snakemake.input["profile_offwind_" + connection]
         with xr.open_dataset(profile) as ds:
