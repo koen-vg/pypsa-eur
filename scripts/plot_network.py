@@ -197,6 +197,25 @@ def plot_map(
         **map_opts,
     )
 
+    # Also plot H2 exports especially
+    for l in network.links.loc[network.links.carrier == "H2 export"].index:
+        link = network.links.loc[l]
+        ax.plot(
+            [
+                network.buses.at[network.buses.loc[link["bus0"]].location, "x"],
+                network.buses.at[network.buses.loc[link["bus1"]].location, "x"],
+            ],
+            [
+                network.buses.at[network.buses.loc[link["bus0"]].location, "y"],
+                network.buses.at[network.buses.loc[link["bus1"]].location, "y"],
+            ],
+            color=tech_colors["H2 export"],
+            linestyle="dashed",
+            lw=link["p_nom_opt"] / linewidth_factor,
+            alpha=0.5,
+            transform=ccrs.PlateCarree(),
+        )
+
     sizes = [20, 10, 5]
     labels = [f"{s} bEUR/a" for s in sizes]
     sizes = [s / bus_size_factor * 1e9 for s in sizes]
@@ -282,7 +301,9 @@ def group_pipes(df, drop_direction=False):
 
 def plot_h2_map(network, regions):
     n = network.copy()
-    if "H2 pipeline" not in n.links.carrier.unique():
+    if ("H2 pipeline" not in n.links.carrier.unique()) and (
+        "H2 export" not in n.links.carrier.unique()
+    ):
         return
 
     assign_location(n)
@@ -319,7 +340,7 @@ def plot_h2_map(network, regions):
         n.links.index[~n.links.carrier.str.contains("H2 pipeline")], inplace=True
     )
 
-    h2_new = n.links[n.links.carrier == "H2 pipeline"]
+    h2_new = n.links[n.links.carrier.isin(["H2 pipeline", "H2 export"])]
     h2_retro = n.links[n.links.carrier == "H2 pipeline retrofitted"]
 
     if snakemake.params.foresight == "myopic":
