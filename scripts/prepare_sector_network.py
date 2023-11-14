@@ -40,6 +40,9 @@ pd_version = parse(pd.__version__)
 agg_group_kwargs = dict(numeric_only=False) if pd_version >= Version("1.3") else {}
 
 
+MWh_per_tonne_H2 = 33
+
+
 def define_spatial(nodes, options):
     """
     Namespace for spatial.
@@ -3286,10 +3289,11 @@ def set_temporal_aggregation(n, opts, solver_name):
     return n
 
 
-def add_continental_hydrogen_demand(n):
-    """Hardcode 10Mt hydrogen demand in Continental Europe"""
-    MWh_per_tonne_H2 = 33
-    H2_demand = 10e6  # in tonnes
+def add_continental_hydrogen_demand(n, level):
+    """Add continental hydrogen demand in form of H2 store.
+
+    Constraint to fill this store by end of year is added in the solve_network script.
+    """
 
     n.add("Bus", "Continental hydrogen demand", carrier="H2")
     n.add(
@@ -3297,7 +3301,7 @@ def add_continental_hydrogen_demand(n):
         "Continental hydrogen demand store",
         bus="Continental hydrogen demand",
         e_nom_extendable=False,
-        e_nom=H2_demand * MWh_per_tonne_H2,
+        e_nom=level,
         e_cyclic=False,
         carrier="H2 Store",
         capital_cost=0,
@@ -3555,8 +3559,6 @@ if __name__ == "__main__":
 
     if options.get("cluster_heat_buses", False) and not first_year_myopic:
         cluster_heat_buses(n)
-
-    add_continental_hydrogen_demand(n)
 
     n.meta = dict(snakemake.config, **dict(wildcards=dict(snakemake.wildcards)))
 
