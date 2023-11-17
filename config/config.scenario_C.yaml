@@ -1,103 +1,101 @@
-
-
 run:
-    name: "scenario_C"
-    disable_progressbar: true
+  name: "scenario_C"
+  disable_progressbar: true
 
 foresight: "myopic"
 
 scenario:
-    simpl:
+  simpl:
     - ""
-    clusters:
-    - "45"
-    # - "30"
-    ll:
+  clusters:
+    # - "45"
+    - "20"
+  ll:
     - "c1.1"
-    opts:
+  opts:
     - ""
-    sector_opts:
+  sector_opts:
     - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT1-offwind"
     - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT2-offwind"
     - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT3-offwind"
     - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT4-offwind"
-    planning_horizons:
+  planning_horizons:
     - 2030
 
 countries: ["NO", "SE", "NL", "DE", "DK"]
 
 focus_weights:
-    "NO": 0.69
-    "SE": 0.3
-    "NL": 0.0033
-    "DE": 0.0033
-    "DK": 0.0033
+  "NO": 0.69
+  "SE": 0.3
+  "NL": 0.0033
+  "DE": 0.0033
+  "DK": 0.0033
 
 electricity:
-    # Only select powerplants phased out after 2022. Note that this is
-    # only relevant for the initial network; for the 2030 planning
-    # horizon network (at add_brownfield) powerplants that are
-    # decommissioned by 2030 are removed anyway.
-    powerplants_filter: (DateOut >= 2022 or DateOut != DateOut)
+  # Only select powerplants phased out after 2022. Note that this is
+  # only relevant for the initial network; for the 2030 planning
+  # horizon network (at add_brownfield) powerplants that are
+  # decommissioned by 2030 are removed anyway.
+  powerplants_filter: (DateOut >= 2022 or DateOut != DateOut)
 
-    estimate_renewable_capacities:
-        year: 2022
+  estimate_renewable_capacities:
+    year: 2022
 
 atlite:
-    cutouts:
-        base:
-            module: era5
+  cutouts:
+    base:
+      module: era5
 
 costs:
-    year: 2030
+  year: 2030
 
 sector:
-    norwegian_hydrogen_exports: true
-    regional_co2_sequestration_potential:
-        enable: true
-    gas_network: true
-    H2_retrofit: false
-    H2_network: false
-    co2_spatial: false
-    co2network: false
-    SMR: false
-    SMR_cc: false               # Scenario C: NO SMR
-    methanation: false
-    dac: false
-    ammonia: false
-    fischer_tropsch: false
-    biomass_spatial: true
-    conventional_generation:
-        OCGT: gas
+  norwegian_hydrogen_exports: true
+  regional_co2_sequestration_potential:
+    enable: true
+  gas_network: true
+  H2_retrofit: false
+  H2_network: false
+  co2_spatial: false
+  co2network: false
+  SMR: false
+  SMR_cc: false # Scenario C: NO SMR
+  methanation: false
+  dac: false
+  ammonia: false
+  fischer_tropsch: false
+  biomass_spatial: true
+  conventional_generation:
+    OCGT: gas
 
 existing_capacities:
-    conventional_carriers:
+  conventional_carriers:
     - lignite
     - coal
     - oil
     - uranium
 
 clustering:
-    simplify_network:
-        algorithm: "hac"
-        feature: "onwind-time"
-    cluster_network:
-        algorithm: "hac"
-        feature: "onwind-time"
+  simplify_network:
+    algorithm: "hac"
+    feature: "onwind-time"
+  cluster_network:
+    algorithm: "hac"
+    feature: "onwind-time"
 
 solving:
-    solver_options:
-        gurobi-default:
-            threads: 2
+  solver_options:
+    gurobi-default:
+      threads: 2
 
 plotting:
-    map:
-        # Whole region:
-        # boundaries: [0, 25, 45, 71]
-        # Just Norway:
-        boundaries: [0, 20, 57, 71]
-    eu_node_location:
-        x: 0.
-        y: 60.
-    tech_colors:
-        H2 export: '#f081dc'
+  map:
+    # Whole region:
+    # boundaries: [0, 25, 45, 71]
+    # Just Norway:
+    boundaries: [0, 20, 57, 71]
+  eu_node_location:
+    x: 0.
+    y: 60.
+  tech_colors:
+    H2 export: "#f081dc"
