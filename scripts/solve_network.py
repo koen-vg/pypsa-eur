@@ -767,11 +767,11 @@ def add_pipe_retrofit_constraint(n):
 def add_continental_hydrogen_demand(n):
     """Add constraint to fill hydrogen demand store by end of period"""
     e = n.model["Store-e"]
-    hydrogen_final_DE = e.sel(
+    hydrogen_final = e.sel(
         {"Store": "Continental hydrogen demand store", "snapshot": n.snapshots[-1]}
     )
     n.model.add_constraints(
-        hydrogen_final_DE >= n.stores.at["Continental hydrogen demand store", "e_nom"],
+        hydrogen_final >= n.stores.at["Continental hydrogen demand store", "e_nom"],
         name="Continental hydrogen demand",
     )
 
@@ -892,7 +892,7 @@ def add_norwegian_offwind_minimum_gen(n):
     """Add a minimum total Norwegian offshore wind production"""
     offwind_NO_gens = n.generators.loc[
         n.generators.carrier.str.contains("offwind")
-        & n.generators.bus.map(n.buses.country == "NO")
+        & (n.generators.bus.map(n.buses.country) == "NO")
     ].index
     p = (
         n.model["Generator-p"].sel(Generator=offwind_NO_gens).sum("Generator")
@@ -900,7 +900,8 @@ def add_norwegian_offwind_minimum_gen(n):
     ).sum()
 
     electrolysis_NO = n.links.loc[
-        (n.links.carrier == "H2 Electrolysis") & (n.links.bus0.str.startswith("NO"))
+        (n.links.carrier == "H2 Electrolysis")
+        & (n.links.bus0.map(n.buses.location).map(n.buses.country) == "NO")
     ].index
     e = (
         n.model["Link-p"].sel(Link=electrolysis_NO).sum("Link")
