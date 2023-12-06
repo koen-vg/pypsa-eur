@@ -3077,7 +3077,12 @@ def maybe_adjust_costs_and_potentials(n, opts):
         suptechs = map(lambda c: c.split("-", 2)[0], carrier_list)
         if oo[0].startswith(tuple(suptechs)):
             carrier = oo[0]
-            attr_lookup = {"p": "p_nom_max", "e": "e_nom_max", "c": "capital_cost"}
+            attr_lookup = {
+                "p": "p_nom_max",
+                "e": "e_nom_max",
+                "c": "capital_cost",
+                "m": "marginal_cost",
+            }
             attr = attr_lookup[oo[1][0]]
             factor = float(oo[1][1:])
             # beware if factor is 0 and p_nom_max is np.inf, 0*np.inf is nan
@@ -3348,7 +3353,8 @@ def add_norwegian_hydrogen_exports(n, costs):
 
     buses_norway = n.buses.index[n.buses.country == "NO"]
 
-    # For each export location, find the norwegian bus closest to it (x and y coords for buses stored in n.buses.x and n.buses.y)
+    # For each export location, find the norwegian bus closest to it
+    # (x and y coords for buses stored in n.buses.x and n.buses.y)
     export_buses = {}
     for location, coords in export_locations.items():
         # Compute distance in a simple way (not great arc distance).

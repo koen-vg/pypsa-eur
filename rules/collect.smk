@@ -3,6 +3,12 @@
 # SPDX-License-Identifier: MIT
 
 
+import itertools
+import random
+import json
+import hashlib
+
+
 localrules:
     all,
     cluster_networks,
@@ -57,6 +63,51 @@ rule solve_sector_networks:
             RESULTS
             + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
             **config["scenario"]
+        ),
+
+
+rule copy_sweep_network:
+    output:
+        RESULTS + "param_sweeps/{hash_digest}/{net}",
+    input:
+        RESULTS + "postnetworks/{net}",
+    shell:
+        """
+        mkdir -p "$(dirname '{output}')"
+        ln -sr "{input}" "{output}"
+        """
+
+
+def param_sweep(param_sweep, scenario, num_nets):
+    def build_opt_strs(conf):
+        return [conf["carrier"] + "+" + conf["attr"] + str(f) for f in conf["factors"]]
+
+    opts = [build_opt_strs(param_sweep[n]) for n in param_sweep]
+    param_space = list(itertools.product(*opts))
+    random.seed(0)
+    random.shuffle(param_space)
+    opts = ["-".join(s) for s in param_space[:num_nets]]
+    hash_digest = hashlib.md5(("".join(opts) + str(num_nets)).encode()).hexdigest()[:8]
+    networks = list(
+        expand(
+            RESULTS
+            + f"param_sweeps/{hash_digest}"
+            + "/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}",
+            **scenario,
+        )
+    )
+    return [
+        f"{n}-{o}_{p}.nc"
+        for n in networks
+        for o in opts
+        for p in scenario["planning_horizons"]
+    ]
+
+
+rule solve_sector_networks_sweep:
+    input:
+        param_sweep(
+            config["param_sweep"], config["scenario"], config["param_sweep_num_nets"]
         ),
 
 

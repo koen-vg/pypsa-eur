@@ -59,7 +59,6 @@ dependencies:
 
 - pip:
   - tsam>=2.3.1
-  # - pypsa>=0.25.2
-  - git+https://github.com/PyPSA/PyPSA.git@416257c4361b634b3433aa5f42153e8d42e9b4c2#egg=pypsa
+  - pypsa==0.25.2
   - cffi    # Shouldn't need this but not having this causes a bug
   - linopy<0.3   # linopy 3.0 has a regression affecting groupby/sum operations on multiindices
