@@ -124,6 +124,13 @@ solving:
     gurobi-default:
       threads: 1
 
+compression:
+  enable: true
+  options:
+    zlib: true
+    complevel: 3
+    least_significant_digit: 3
+
 plotting:
   map:
     # Whole region:
