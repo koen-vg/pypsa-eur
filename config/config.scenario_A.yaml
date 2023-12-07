@@ -92,6 +92,7 @@ sector:
   H2_retrofit: false
   H2_network: false
   co2_spatial: false
+  co2_sequestration_lifetime: .inf
   co2network: false
   SMR: false
   SMR_cc: true
@@ -121,7 +122,7 @@ clustering:
 solving:
   solver_options:
     gurobi-default:
-      threads: 2
+      threads: 1
 
 plotting:
   map:
