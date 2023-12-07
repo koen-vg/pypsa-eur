@@ -118,7 +118,7 @@ rule solve_sector_network_perfect:
         co2_sequestration_potential=config["sector"].get(
             "co2_sequestration_potential", 200
         ),
-        compression=config.get(["compression"], {"enable": False}),
+        compression=config.get("compression", {"enable": False}),
     input:
         network=RESULTS
         + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_brownfield_all_years.nc",

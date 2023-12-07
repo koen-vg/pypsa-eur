@@ -1070,8 +1070,8 @@ if __name__ == "__main__":
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
 
     compression_opts = {}
-    if params.compression["enable"] == True:
-        compression_opts = params.compression["options"]
+    if snakemake.params.compression["enable"] == True:
+        compression_opts = snakemake.params.compression["options"]
 
     n.meta = dict(snakemake.config, **dict(wildcards=dict(snakemake.wildcards)))
     n.export_to_netcdf(snakemake.output[0], compression=compression_opts)
