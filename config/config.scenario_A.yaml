@@ -107,6 +107,15 @@ existing_capacities:
     - oil
     - uranium
 
+costs:
+  capital_cost:
+    # From NVE, we have that floating offwind (excluding connection
+    # costs) costs 46000 NOK / kWel in 2021 NOK.
+    # With a conversion rate for 2021 of 0.0984, this is 4526 EUR_2021.
+    # Using Eurostat HICP rates we find that inflation 2015-2021 was 8.82%,
+    # Making for a cost of 4160 EUR_2015
+    offwind-float: 4160
+
 clustering:
   simplify_network:
     algorithm: "hac"
