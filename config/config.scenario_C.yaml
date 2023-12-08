@@ -15,51 +15,44 @@ scenario:
   opts:
     - ""
   sector_opts:
-    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT1-offwind"
-    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT2-offwind"
-    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT3-offwind"
     - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT4-offwind"
   planning_horizons:
     - 2030
 
-param_sweep_num_nets: 200
+param_sweep_num_nets: 400
 param_sweep:
   export_capital_cost:
     carrier: "H2 exports"
     attr: "c" # Capital cost
-    factors: [0.8, 1.0, 1.2]
+    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
   export_marginal_cost:
     carrier: "H2 exports"
     attr: "m" # Marginal cost
-    factors: [0.8, 1.0, 1.2]
+    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
   electrolysis_cost:
     carrier: "H2 Electrolysis"
     attr: "c" # Capital cost
-    factors: [0.8, 1.0, 1.2]
+    factors: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3]
   SMR_cost:
     carrier: "SMR CC"
     attr: "c" # Capital cost
-    factors: [0.8, 1.0, 1.2]
+    factors: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3]
   sequestration_cost:
     carrier: "co2 stored"
     attr: "c" # Capital cost: sequestration is modelled as store
-    factors: [0.8, 1.0, 1.2]
+    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
   onwind_cost:
     carrier: "onwind"
     attr: "c" # Capital cost
-    factors: [0.8, 1.0, 1.2]
+    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
   offwind-ac_cost:
-    carrier: "offwind-ac"
+    carrier: "offwindfixed"
     attr: "c" # Capital cost
-    factors: [0.8, 1.0, 1.2]
-  offwind-dc_cost:
-    carrier: "offwind-dc"
-    attr: "c" # Capital cost
-    factors: [0.8, 1.0, 1.2]
+    factors: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3]
   offwind-float_cost:
-    carrier: "offwind-float"
+    carrier: "offwindfloat"
     attr: "c" # Capital cost
-    factors: [0.8, 1.0, 1.2]
+    factors: [0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 
 
 countries: ["NO", "SE", "NL", "DE", "DK"]

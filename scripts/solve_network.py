@@ -951,8 +951,9 @@ def extra_functionality(n, snapshots):
 
             add_export_constraint(n, level, region)
 
-            if "offwind" in opts:
-                add_norwegian_offwind_minimum_gen(n)
+    if "offwind" in opts:
+        logger.info("Adding Norwegian offshore wind minimum generation.")
+        add_norwegian_offwind_minimum_gen(n)
 
     add_battery_constraints(n)
     add_pipe_retrofit_constraint(n)

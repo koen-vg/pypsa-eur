@@ -3062,9 +3062,19 @@ def remove_h2_network(n):
 
 
 def maybe_adjust_costs_and_potentials(n, opts):
+    # Deal with carriers containing a "-"
+    new_opts = []
     for o in opts:
-        if "+" not in o:
-            continue
+        if "+" in o and "offwindfixed" in o:
+            new_opts.append(o.replace("offwindfixed", "offwind-ac"))
+            new_opts.append(o.replace("offwindfixed", "offwind-dc"))
+        elif "+" in o and "offwindfloat" in o:
+            new_opts.append(o.replace("offwindfloat", "offwind-float"))
+        elif "+" in o:
+            new_opts.append(o)
+    opts = new_opts
+
+    for o in opts:
         oo = o.split("+")
         carrier_list = np.hstack(
             (
