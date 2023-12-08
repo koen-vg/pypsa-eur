@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: : 2017-2023 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: MIT
+
+name: hydrogen-exports-analysis
+channels:
+- conda-forge
+- bioconda
+- gurobi
+dependencies:
+- pip
+- seaborn
+- yaml
+- numpy
+- pandas>=1.4
+- geopandas>=0.11.0
+- xarray==2023.8.0
+- rioxarray
+- netcdf4
+- scipy
+- shapely>=2.0
+- matplotlib<3.6
+- proj
+- powerplantmatching
+- gurobi
+- SALib
+
+  # Keep in conda environment when calling ipython
+- ipython
+
+  # Allow using this as a jupyter kernel
+- ipykernel
+
+  # GIS dependencies:
+- cartopy
+- descartes
+- rasterio!=1.2.10
+
+
+- pip:
+  - searoute 
+  - tsam>=2.3.1
+  - pypsa==0.25.2
+  - cffi    # Shouldn't need this but not having this causes a bug
+  - linopy<0.3   # linopy 3.0 has a regression affecting groupby/sum operations on multiindices
