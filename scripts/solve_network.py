@@ -770,9 +770,20 @@ def add_continental_hydrogen_demand(n):
     hydrogen_final = e.sel(
         {"Store": "Continental hydrogen demand store", "snapshot": n.snapshots[-1]}
     )
+    level = n.stores.at["Continental hydrogen demand store", "e_nom"]
+
+    name = "Continental_H2_demand"
+    n.add(
+        "GlobalConstraint",
+        name=name,
+        type="demand",
+        carrier_attribute="H2",
+        sense=">=",
+        constant=level,
+    )
     n.model.add_constraints(
-        hydrogen_final >= n.stores.at["Continental hydrogen demand store", "e_nom"],
-        name="Continental hydrogen demand",
+        hydrogen_final >= level,
+        name=f"GlobalConstraint-{name}",
     )
 
 
@@ -780,6 +791,7 @@ def add_export_constraint(n, level, region):
     """Ensure that Norway exports a fixed amount of hydrogen
 
     'level' is the total yearly H2 export amount in MWh."""
+
     export_links_pos = n.links.loc[
         n.links.carrier.str.contains("H2")
         & n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
@@ -805,9 +817,19 @@ def add_export_constraint(n, level, region):
         ).sum("Link")
         * n.snapshot_weightings.generators
     ).sum()
+
+    name = "H2_export"
+    n.add(
+        "GlobalConstraint",
+        name=name,
+        type="export",
+        carrier_attribute="H2 export",
+        sense=">=",
+        constant=level,
+    )
     n.model.add_constraints(
         l_pos - l_neg >= level,
-        name="Hydrogen export constraint",
+        name=f"GlobalConstraint-{name}",
     )
 
     if region == "north":
@@ -845,9 +867,19 @@ def add_export_constraint(n, level, region):
             ).sum("Link")
             * n.snapshot_weightings.generators
         ).sum()
+
+        name = "H2_export_north"
+        n.add(
+            "GlobalConstraint",
+            name=name,
+            type="export",
+            carrier_attribute="H2 export",
+            sense=">=",
+            constant=level,
+        )
         n.model.add_constraints(
             l_pos - l_neg >= level,
-            name="Hydrogen export constraint (north)",
+            name=f"GlobalConstraint-{name}",
         )
 
     # Finally, add a constraint ensuring that Norway doesn't become a
@@ -885,7 +917,17 @@ def add_export_constraint(n, level, region):
         )
         * n.snapshot_weightings.generators
     ).sum()
-    n.model.add_constraints(elec_export >= 0, name="Norway net electricity export")
+
+    name = "Norway_elec_export"
+    n.add(
+        "GlobalConstraint",
+        name=name,
+        type="export",
+        carrier_attribute="AC, DC",
+        sense=">=",
+        constant=0,
+    )
+    n.model.add_constraints(elec_export >= 0, name=f"GlobalConstraint-{name}")
 
 
 def add_norwegian_offwind_minimum_gen(n):
@@ -908,9 +950,18 @@ def add_norwegian_offwind_minimum_gen(n):
         * n.snapshot_weightings.generators
     ).sum()
 
+    name = "NO_offwind_min"
+    n.add(
+        "GlobalConstraint",
+        name=name,
+        type="capacity_bound",
+        carrier_attribute="offwind-ac, offwind-dc, offwind-float",
+        sense=">=",
+        constant=0,
+    )
     n.model.add_constraints(
-        p >= e,
-        name="NO offwind min",
+        p - e >= 0,
+        name=f"GlobalConstraint-{name}",
     )
 
 
