@@ -15,7 +15,7 @@ scenario:
   opts:
     - ""
   sector_opts:
-    - "100SEG-T-H-B-I-A-Co2L0.5-EXPORT4-offwind"
+    - "1000SEG-T-H-B-I-A-Co2L0.5-EXPORT4-offwind"
   planning_horizons:
     - 2030
 
