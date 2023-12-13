@@ -82,22 +82,23 @@ def param_sweep(param_sweep, scenario, num_nets):
     def build_opt_strs(conf):
         return [conf["carrier"] + "+" + conf["attr"] + str(f) for f in conf["factors"]]
 
+    networks = list(
+        expand(
+            "elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}",
+            **scenario,
+        )
+    )
+
     opts = [build_opt_strs(param_sweep[n]) for n in param_sweep]
     param_space = list(itertools.product(*opts))
     random.seed(0)
     random.shuffle(param_space)
     opts = ["-".join(s) for s in param_space[:num_nets]]
-    hash_digest = hashlib.md5(("".join(opts) + str(num_nets)).encode()).hexdigest()[:8]
-    networks = list(
-        expand(
-            RESULTS
-            + f"param_sweeps/{hash_digest}"
-            + "/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}",
-            **scenario,
-        )
-    )
+
+    hash_digest = hashlib.md5(("".join(opts) + "".join(networks)).encode()).hexdigest()[:8]
+    
     return [
-        f"{n}-{o}_{p}.nc"
+        os.path.join(RESULTS, "param_sweeps", hash_digest, f"{n}-{o}_{p}.nc")
         for n in networks
         for o in opts
         for p in scenario["planning_horizons"]
