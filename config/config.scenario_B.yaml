@@ -29,6 +29,10 @@ param_sweep:
     carrier: "H2 exports"
     attr: "m" # Marginal cost
     factors: [0.8, 0.9, 1.0, 1.1, 1.2]
+  export_efficiency:
+    carrier: "H2 exports"
+    attr: "f" # Efficiency
+    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
   electrolysis_cost:
     carrier: "H2 Electrolysis"
     attr: "c" # Capital cost
@@ -55,14 +59,15 @@ param_sweep:
     factors: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3]
 
 
-countries: ["NO", "SE", "NL", "DE", "DK"]
+countries: ["NO", "SE", "NL", "DE", "DK", "GB"]
 
 focus_weights:
   "NO": 0.69
   "SE": 0.3
-  "NL": 0.0033
-  "DE": 0.0033
-  "DK": 0.0033
+  "NL": 0.0025
+  "DE": 0.0025
+  "DK": 0.0025
+  "GB": 0.0025
 
 electricity:
   # Only select powerplants phased out after 2022. Note that this is

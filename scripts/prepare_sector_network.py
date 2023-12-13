@@ -3092,6 +3092,7 @@ def maybe_adjust_costs_and_potentials(n, opts):
                 "e": "e_nom_max",
                 "c": "capital_cost",
                 "m": "marginal_cost",
+                "f": "efficiency",
             }
             attr = attr_lookup[oo[1][0]]
             factor = float(oo[1][1:])
@@ -3103,6 +3104,8 @@ def maybe_adjust_costs_and_potentials(n, opts):
                     comps = {"Generator", "Link", "StorageUnit"}
                 elif attr == "e_nom_max":
                     comps = {"Store"}
+                elif attr == "efficiency":
+                    comps = {"Link", "Generator"}
                 else:
                     comps = {"Generator", "Link", "StorageUnit", "Store"}
                 for c in n.iterate_components(comps):
