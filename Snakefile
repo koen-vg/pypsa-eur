@@ -27,11 +27,11 @@ ATLITE_NPROCESSES = config["atlite"].get("nprocesses", 4)
 
 
 wildcard_constraints:
-    weather_year="[0-9]{4}|",
-    simpl="[a-zA-Z0-9]*|all",
-    clusters="[0-9]+m?|all|[0-9]+-[0-9]+-[0-9]+",
-    ll="(v|c)([0-9\.]+|opt|all)|all",
-    opts="[-+a-zA-Z0-9\.]*",
+    weather_year=r"[0-9]{4}|",
+    simpl=r"[a-zA-Z0-9]*|all",
+    clusters=r"[0-9]+m?|all|[0-9]+-[0-9]+-[0-9]+",
+    ll=r"(v|c)([0-9\.]+|opt|all)|all",
+    opts=r"[-+a-zA-Z0-9\.]*",
 
 
 rule cluster_all_networks:
