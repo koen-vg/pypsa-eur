@@ -58,7 +58,6 @@ param_sweep:
     attr: "c" # Capital cost
     factors: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3]
 
-
 countries: ["NO", "SE", "NL", "DE", "DK", "GB"]
 
 focus_weights:
@@ -83,9 +82,6 @@ atlite:
   cutouts:
     base:
       module: era5
-
-costs:
-  year: 2030
 
 sector:
   norwegian_hydrogen_exports: true
@@ -113,6 +109,7 @@ existing_capacities:
     - uranium
 
 costs:
+  year: 2030
   capital_cost:
     # From NVE, we have that floating offwind (excluding connection
     # costs) costs 46000 NOK / kWel in 2021 NOK.
