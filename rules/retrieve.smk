@@ -254,13 +254,13 @@ if config["enable"]["retrieve"]:
         response = requests.head(url)
         return response.status_code == 200
 
-    url = f"https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_{bYYYY}_Public.zip"
+    url = f"https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_{bYYYY}_Public_shp.zip"
 
     if not check_file_exists(url):
         prev_month = (datetime.now() - timedelta(30)).strftime("%b")
         bYYYY = f"{prev_month}{current_year}"
         assert check_file_exists(
-            f"https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_{bYYYY}_Public.zip"
+            f"https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_{bYYYY}_Public_shp.zip"
         ), "The file does not exist."
 
     # Downloading protected area database from WDPA
