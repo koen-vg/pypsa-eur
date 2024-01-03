@@ -110,6 +110,7 @@ existing_capacities:
     - coal
     - oil
     - uranium
+    - gas
 
 costs:
   year: 2030
