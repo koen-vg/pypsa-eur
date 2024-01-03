@@ -138,6 +138,11 @@ compression:
     complevel: 3
     least_significant_digit: 3
 
+wind_bias_correction:
+  corrector_year: 2013
+  num_near_wind_parks: 10
+  num_parallel_processes: 48
+
 plotting:
   map:
     # Whole region:
