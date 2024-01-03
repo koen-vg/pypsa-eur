@@ -424,9 +424,19 @@ def remove_stubs(
 ):
     logger.info("Removing stubs")
 
+    # If simplify_network["remove_stubs"] is a list of countries, only
+    # remove stubs in those countries. This is done by adding an
+    # attribute to buses which is uniform across the given countries,
+    # but nowhere else.
+    m = n.copy()
+    m.buses["aux_id"] = m.buses.index
+    rem_stub_countries = simplify_network["remove_stubs"]
+    if isinstance(rem_stub_countries, list):
+        m.buses.loc[m.buses.country.isin(rem_stub_countries), "aux_id"] = ""
+
     across_borders = simplify_network["remove_stubs_across_borders"]
-    matching_attrs = [] if across_borders else ["country"]
-    busmap = busmap_by_stubs(n, matching_attrs)
+    matching_attrs = ["aux_id"] if across_borders else ["country", "aux_id"]
+    busmap = busmap_by_stubs(m, matching_attrs)
 
     connection_costs_to_bus = _compute_connection_costs_to_bus(
         n, busmap, costs, renewable_carriers, length_factor
