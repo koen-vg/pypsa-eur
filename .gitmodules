@@ -1,0 +1,3 @@
+[submodule "modules/wind-bias-correction-norway"]
+	path = modules/wind-bias-correction-norway
+	url = git@github.com:koen-vg/wind-bias-correction-norway.git

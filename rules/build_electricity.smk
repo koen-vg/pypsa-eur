@@ -2,6 +2,20 @@
 #
 # SPDX-License-Identifier: MIT
 
+
+# Import snakemake module at modules/wind-bias-correction-norway
+module wind_bias_correction_norway:
+    snakefile:
+        "../modules/wind-bias-correction-norway/Snakefile"
+    config:
+        config["wind_bias_correction"]
+    prefix:
+        "modules/wind-bias-correction-norway"
+
+
+use rule * from wind_bias_correction_norway as wind_bias_correct_*
+
+
 if config["enable"].get("prepare_links_p_nom", False):
 
     rule prepare_links_p_nom:
@@ -243,6 +257,7 @@ rule build_renewable_profiles:
         + CDIR
         + config["renewable"][w.technology]["cutout"]
         + ".nc",
+        corrected_wind_cfs="modules/wind-bias-correction-norway/data/output/corrected_wind_capacity_factors_2013.nc",
     output:
         profile=RESOURCES + "profile_{technology}.nc",
     log:

@@ -192,6 +192,7 @@ import xarray as xr
 from _helpers import configure_logging
 from dask.distributed import Client
 from pypsa.geo import haversine
+from scipy.sparse import csr_matrix
 from shapely.geometry import LineString
 
 logger = logging.getLogger(__name__)
@@ -304,15 +305,46 @@ if __name__ == "__main__":
     if client is not None:
         resource["dask_kwargs"] = {"scheduler": client}
     capacity_factor = correction_factor * func(capacity_factor=True, **resource)
+
     layout = capacity_factor * area * capacity_per_sqkm
-    profile, capacities = func(
-        matrix=availability.stack(spatial=["y", "x"]),
-        layout=layout,
-        index=buses,
-        per_unit=True,
-        return_capacity=True,
-        **resource,
-    )
+
+    # Correction for Norwegian onshore wind capacity factors
+    if snakemake.wildcards.technology == "onwind":
+        # Compute ERA5 capacity factors for whole region, then load Norwegian corrected
+        # capacity factors and replace the ERA5 capacity factors with the corrected ones.
+        cfs = func(per_unit=True, shapes=cutout.grid, **resource)
+        corrected_cfs = xr.open_dataarray(snakemake.input.corrected_wind_cfs)
+        cfs.loc[dict(dim_0=corrected_cfs.dim_1)] = corrected_cfs
+
+        # Now that we have the corrected capacity factors, we need to index them back to x and y.
+        # In "cfs", dim_0 represents grid codes (the index of the of the cutout.grid dataframe
+        # containing x and y coords as columns), we need to replace the grid codes with the x and y coords.
+        cfs["x"] = cutout.grid.x
+        cfs["y"] = cutout.grid.y
+        cfs = cfs.set_index(dim_0=["y", "x"]).unstack("dim_0")
+
+        # Now we need to aggregate to the bus level. For this, we follow the atlite
+        # `covert_and_aggregate` function.
+        layout = layout.reindex_like(cutout.data).stack(spatial=["y", "x"])
+        matrix = availability.stack(spatial=["y", "x"])
+        matrix = csr_matrix(matrix) * atlite.gis.spdiag(layout)
+        results = atlite.aggregate.aggregate_matrix(cfs, matrix=matrix, index=buses)
+
+        caps = matrix.sum(-1)
+        capacities = xr.DataArray(np.asarray(caps).flatten(), [buses])
+        capacities.attrs["units"] = "MW"
+
+        profile = (results / capacities.where(capacities != 0)).fillna(0.0)
+
+    else:
+        profile, capacities = func(
+            matrix=availability.stack(spatial=["y", "x"]),
+            layout=layout,
+            index=buses,
+            per_unit=True,
+            return_capacity=True,
+            **resource,
+        )
 
     logger.info(f"Calculating maximal capacity per bus (method '{p_nom_max_meth}')")
     if p_nom_max_meth == "simple":
@@ -327,6 +359,7 @@ if __name__ == "__main__":
         )
 
     logger.info("Calculate average distances.")
+    layout = capacity_factor * area * capacity_per_sqkm
     layoutmatrix = (layout * availability).stack(spatial=["y", "x"])
 
     coords = cutout.grid[["x", "y"]]
