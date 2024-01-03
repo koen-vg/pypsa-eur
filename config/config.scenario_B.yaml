@@ -123,7 +123,7 @@ costs:
 
 clustering:
   simplify_network:
-    remove_stubs: ["UK", "DE", "NL", "DK"]
+    remove_stubs: ["GB", "DE", "NL", "DK", "SE", "FI"]
 
 solving:
   solver_options:
