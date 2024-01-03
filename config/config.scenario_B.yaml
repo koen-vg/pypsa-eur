@@ -102,6 +102,7 @@ sector:
   biomass_spatial: true
   conventional_generation:
     OCGT: gas
+    nuclear: uranium
 
 existing_capacities:
   conventional_carriers:
