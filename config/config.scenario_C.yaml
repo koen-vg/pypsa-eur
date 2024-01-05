@@ -41,6 +41,10 @@ param_sweep:
     carrier: "SMR CC"
     attr: "c" # Capital cost
     range: [0.7, 1.3]
+  gas_cost:
+    carrier: "gas"
+    attr: "m" # Marginal cost
+    range: [0.8, 1.4]
   sequestration_cost:
     carrier: "co2 stored"
     attr: "c" # Capital cost: sequestration is modelled as store
