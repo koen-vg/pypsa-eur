@@ -787,104 +787,8 @@ def add_continental_hydrogen_demand(n):
     )
 
 
-def add_export_constraint(n, level, region):
-    """Ensure that Norway exports a fixed amount of hydrogen
-
-    'level' is the total yearly H2 export amount in MWh."""
-
-    export_links_pos = n.links.loc[
-        n.links.carrier.str.contains("H2")
-        & n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
-        & ~n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
-    ].index
-    export_links_neg = n.links.loc[
-        n.links.carrier.str.contains("H2")
-        & n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
-        & ~n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
-    ].index
-
-    l_pos = (
-        (
-            n.model["Link-p"].sel({"Link": export_links_pos})
-            * n.links.loc[export_links_pos, "efficiency"]
-        ).sum("Link")
-        * n.snapshot_weightings.generators
-    ).sum()
-    l_neg = (
-        (
-            n.model["Link-p"].sel({"Link": export_links_neg})
-            * n.links.loc[export_links_neg, "efficiency"]
-        ).sum("Link")
-        * n.snapshot_weightings.generators
-    ).sum()
-
-    name = "H2_export"
-    n.add(
-        "GlobalConstraint",
-        name=name,
-        type="export",
-        carrier_attribute="H2 export",
-        sense=">=",
-        constant=level,
-    )
-    n.model.add_constraints(
-        l_pos - l_neg >= level,
-        name=f"GlobalConstraint-{name}",
-    )
-
-    if region == "north":
-        # Add an additional constraint for links going out of the north of Norway
-        export_links_pos = n.links.loc[
-            n.links.carrier.str.contains("H2")
-            & n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
-            & (n.links.bus0.map(n.buses.location).map(n.buses.y) > 65)
-            & ~(
-                n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
-                & (n.links.bus1.map(n.buses.location).map(n.buses.y) > 65)
-            )
-        ].index
-        export_links_neg = n.links.loc[
-            n.links.carrier.str.contains("H2")
-            & n.links.bus1.map(n.buses.location).map(n.buses.country).isin(["NO"])
-            & (n.links.bus1.map(n.buses.location).map(n.buses.y) > 65)
-            & ~(
-                n.links.bus0.map(n.buses.location).map(n.buses.country).isin(["NO"])
-                & (n.links.bus0.map(n.buses.location).map(n.buses.y) > 65)
-            )
-        ].index
-
-        l_pos = (
-            (
-                n.model["Link-p"].sel({"Link": export_links_pos})
-                * n.links.loc[export_links_pos, "efficiency"]
-            ).sum("Link")
-            * n.snapshot_weightings.generators
-        ).sum()
-        l_neg = (
-            (
-                n.model["Link-p"].sel({"Link": export_links_neg})
-                * n.links.loc[export_links_neg, "efficiency"]
-            ).sum("Link")
-            * n.snapshot_weightings.generators
-        ).sum()
-
-        name = "H2_export_north"
-        n.add(
-            "GlobalConstraint",
-            name=name,
-            type="export",
-            carrier_attribute="H2 export",
-            sense=">=",
-            constant=level,
-        )
-        n.model.add_constraints(
-            l_pos - l_neg >= level,
-            name=f"GlobalConstraint-{name}",
-        )
-
-    # Finally, add a constraint ensuring that Norway doesn't become a
-    # net electricity importer.
-
+def norway_net_elec_exporter(n):
+    """Ensure that Norway is a net electricity exporter."""
     export_ac_pos = n.lines.loc[
         n.lines.bus0.map(n.buses.country).isin(["NO"])
         & ~n.lines.bus1.map(n.buses.country).isin(["NO"])
@@ -989,19 +893,6 @@ def extra_functionality(n, snapshots):
         if "EQ" in o:
             add_EQ_constraints(n, o)
 
-        if "EXPORT" in o:
-            level_region = o.lstrip("EXPORT")
-            # Parse the above, which is of the form "<float><str>"
-            # where the initial float is the number of tonnes of H2 to
-            # export, and the string is either empty or "north" to
-            # describe from which region to export.
-            float_regex = "[0-9]*\.?[0-9]+"
-            level = re.search(float_regex, level_region)[0]  # Level in Mt H2
-            region = level_region.lstrip(level)
-            level = float(level) * 1e6 * MWh_per_tonne_H2  # Level in MWh
-
-            add_export_constraint(n, level, region)
-
     if "offwind" in opts:
         logger.info("Adding Norwegian offshore wind minimum generation.")
         add_norwegian_offwind_minimum_gen(n)
@@ -1014,6 +905,7 @@ def extra_functionality(n, snapshots):
         add_retrofit_gas_boiler_constraint(n, snapshots)
 
     add_continental_hydrogen_demand(n)
+    norway_net_elec_exporter(n)
 
 
 def solve_network(n, config, solving, opts="", **kwargs):

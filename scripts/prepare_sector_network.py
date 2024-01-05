@@ -3323,6 +3323,12 @@ def add_continental_hydrogen_demand(n, level):
     """
 
     n.add("Bus", "Continental hydrogen demand", carrier="H2")
+
+    # Set location for plotting purposes
+    n.buses.loc["Continental hydrogen demand", "location"] = n.buses.index[
+        n.buses.country == "DE"
+    ][0]
+
     n.add(
         "Store",
         "Continental hydrogen demand store",
@@ -3333,23 +3339,6 @@ def add_continental_hydrogen_demand(n, level):
         carrier="H2 Store",
         capital_cost=0,
     )
-
-    # continental_H2_buses = n.buses.loc[
-    #     (n.buses.carrier == "H2")
-    #     & (n.buses.location.map(n.buses.country).isin(["NL", "DE", "DK"]))
-    # ].index
-
-    # for s in continental_H2_buses:
-    #     n.add(
-    #         "Link",
-    #         "Continental demand link " + s,
-    #         bus0=s,
-    #         bus1="Continental hydrogen demand",
-    #         carrier="H2",
-    #         p_nom_extendable=True,
-    #         capital_cost=0,
-    #         p_min_pu=0,  # Only allow one-directional flow
-    #     )
 
 
 def add_norwegian_hydrogen_exports(n, costs):
@@ -3393,9 +3382,9 @@ def add_norwegian_hydrogen_exports(n, costs):
             bus1="Continental hydrogen demand",
             carrier="H2 export",
             p_nom_extendable=True,
-            capital_cost=800000,  # 800 EUR / kW cost of processing the hydrogen for export
-            efficiency=0.7,  # 70% efficiency of processing the hydrogen for export
-            marginal_cost=1.0 * d / 1000,  # 1 EUR / MWh / 1000km
+            capital_cost=costs.at["H2 export", "fixed"],
+            efficiency=costs.at["H2 export", "efficiency"],
+            marginal_cost=d * costs.at["H2 export", "VOM"],
         )
 
 
@@ -3512,9 +3501,6 @@ if __name__ == "__main__":
     if options["allam_cycle"]:
         add_allam(n, costs)
 
-    if options["norwegian_hydrogen_exports"]:
-        add_norwegian_hydrogen_exports(n, costs)
-
     for o in opts:
         if "EXPORT" in o:
             level_region = o.lstrip("EXPORT")
@@ -3528,6 +3514,9 @@ if __name__ == "__main__":
             level = float(level) * 1e6 * MWh_per_tonne_H2  # Level in MWh
 
             add_continental_hydrogen_demand(n, level)
+
+    if options["norwegian_hydrogen_exports"]:
+        add_norwegian_hydrogen_exports(n, costs)
 
     solver_name = snakemake.config["solving"]["solver"]["name"]
     n = set_temporal_aggregation(n, opts, solver_name)
