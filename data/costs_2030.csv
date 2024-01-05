@@ -914,3 +914,8 @@ waste CHP CC,investment,8110.3941,EUR/kW_e,"Danish Energy Agency, technology_dat
 waste CHP CC,lifetime,25.0,years,"Danish Energy Agency, technology_data_for_el_and_dh.xlsx","08 WtE CHP, Large, 50 degree:  Technical lifetime"
 water tank charger,efficiency,0.8367,per unit,"Danish Energy Agency, technology_data_catalogue_for_energy_storage.xlsx",:  efficiency from sqr(Round trip efficiency)
 water tank discharger,efficiency,0.8367,per unit,"Danish Energy Agency, technology_data_catalogue_for_energy_storage.xlsx",:  efficiency from sqr(Round trip efficiency)
+H2 export,investment,800,EUR/kW_th,assumption
+H2 export,efficiency,0.7,per unit,assumption
+H2 export,VOM,0.001,EUR/MWh/km,assumption
+H2 export,FOM,2,%/year,assumption
+H2 export,lifetime,20,years,assumption
