@@ -79,8 +79,13 @@ rule copy_sweep_network:
 
 
 def param_sweep(param_sweep, scenario, num_nets):
-    def build_opt_strs(conf):
-        return [conf["carrier"] + "+" + conf["attr"] + str(f) for f in conf["factors"]]
+    def build_opt_strs(params: dict[str, float]):
+        return "-".join(
+            [
+                param_sweep[p]["carrier"] + "+" + param_sweep[p]["attr"] + str(params[p])
+                for p in params
+            ]
+        )
 
     networks = list(
         expand(
@@ -89,14 +94,24 @@ def param_sweep(param_sweep, scenario, num_nets):
         )
     )
 
-    opts = [build_opt_strs(param_sweep[n]) for n in param_sweep]
-    param_space = list(itertools.product(*opts))
-    random.seed(0)
-    random.shuffle(param_space)
-    opts = ["-".join(s) for s in param_space[:num_nets]]
+    # Looks like {"name": [<min>, <max>], ...}
+    param_space = {p: param_sweep[p]["range"] for p in param_sweep}
 
-    hash_digest = hashlib.md5(("".join(opts) + "".join(networks)).encode()).hexdigest()[:8]
-    
+    # Randomly draw `num_nets` random tuples from the parameter space.
+    random.seed(0)
+    samples = [
+        {p: round(random.uniform(*param_space[p]), 2) for p in param_space}
+        for _ in range(num_nets)
+    ]
+
+    # Build the parameter strings for each sample.
+    opts = [build_opt_strs(s) for s in samples]
+
+    # Build the hash digest for the parameter sweep.
+    hash_digest = hashlib.md5(("".join(opts) + "".join(networks)).encode()).hexdigest()[
+        :8
+    ]
+
     return [
         os.path.join(RESULTS, "param_sweeps", hash_digest, f"{n}-{o}_{p}.nc")
         for n in networks

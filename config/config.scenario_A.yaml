@@ -22,41 +22,41 @@ scenario:
 param_sweep_num_nets: 400
 param_sweep:
   export_capital_cost:
-    carrier: "H2 exports"
+    carrier: "H2 export"
     attr: "c" # Capital cost
-    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
+    range: [0.8, 1.2]
   export_marginal_cost:
-    carrier: "H2 exports"
+    carrier: "H2 export"
     attr: "m" # Marginal cost
-    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
+    range: [0.8, 1.2]
   export_efficiency:
-    carrier: "H2 exports"
+    carrier: "H2 export"
     attr: "f" # Efficiency
-    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
+    range: [0.8, 1.2]
   electrolysis_cost:
     carrier: "H2 Electrolysis"
     attr: "c" # Capital cost
-    factors: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3]
+    range: [0.7, 1.3]
   SMR_cost:
     carrier: "SMR CC"
     attr: "c" # Capital cost
-    factors: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3]
+    range: [0.7, 1.3]
   sequestration_cost:
     carrier: "co2 stored"
     attr: "c" # Capital cost: sequestration is modelled as store
-    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
+    range: [0.8, 1.2]
   onwind_cost:
     carrier: "onwind"
     attr: "c" # Capital cost
-    factors: [0.8, 0.9, 1.0, 1.1, 1.2]
+    range: [0.8, 1.2]
   offwind-ac_cost:
     carrier: "offwindfixed"
     attr: "c" # Capital cost
-    factors: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3]
+    range: [0.7, 1.3]
   offwind-float_cost:
     carrier: "offwindfloat"
     attr: "c" # Capital cost
-    factors: [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3]
+    range: [0.7, 1.3]
 
 
 countries: ["NO", "SE", "FI", "NL", "DE", "DK", "GB"]
