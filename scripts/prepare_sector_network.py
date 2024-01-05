@@ -18,15 +18,14 @@ import pandas as pd
 import pypsa
 import searoute as sr
 import xarray as xr
+from _helpers import generate_periodic_profiles, update_config_with_sector_opts
+from add_electricity import calculate_annuity, sanitize_carriers
+from build_energy_totals import build_co2_totals, build_eea_co2, build_eurostat_co2
 from networkx.algorithms import complement
 from networkx.algorithms.connectivity.edge_augmentation import k_edge_augmentation
 from pypsa.geo import haversine_pts
 from pypsa.io import import_components_from_dataframe
 from scipy.stats import beta
-
-from _helpers import generate_periodic_profiles, update_config_with_sector_opts
-from add_electricity import calculate_annuity, sanitize_carriers
-from build_energy_totals import build_co2_totals, build_eea_co2, build_eurostat_co2
 
 logger = logging.getLogger(__name__)
 
@@ -3335,22 +3334,22 @@ def add_continental_hydrogen_demand(n, level):
         capital_cost=0,
     )
 
-    continental_H2_buses = n.buses.loc[
-        (n.buses.carrier == "H2")
-        & (n.buses.location.map(n.buses.country).isin(["NL", "DE", "DK"]))
-    ].index
+    # continental_H2_buses = n.buses.loc[
+    #     (n.buses.carrier == "H2")
+    #     & (n.buses.location.map(n.buses.country).isin(["NL", "DE", "DK"]))
+    # ].index
 
-    for s in continental_H2_buses:
-        n.add(
-            "Link",
-            "Continental demand link " + s,
-            bus0=s,
-            bus1="Continental hydrogen demand",
-            carrier="H2",
-            p_nom_extendable=True,
-            capital_cost=0,
-            p_min_pu=0,  # Only allow one-directional flow
-        )
+    # for s in continental_H2_buses:
+    #     n.add(
+    #         "Link",
+    #         "Continental demand link " + s,
+    #         bus0=s,
+    #         bus1="Continental hydrogen demand",
+    #         carrier="H2",
+    #         p_nom_extendable=True,
+    #         capital_cost=0,
+    #         p_min_pu=0,  # Only allow one-directional flow
+    #     )
 
 
 def add_norwegian_hydrogen_exports(n, costs):
@@ -3379,7 +3378,7 @@ def add_norwegian_hydrogen_exports(n, costs):
         export_buses[location] = buses_norway[distances_sq.argmin()]
 
     # For the continental bus, choose the first bus located in Germany
-    bus_continental_europe = n.buses.index[n.buses.country == "DE"][0]
+    # bus_continental_europe = n.buses.index[n.buses.country == "DE"][0]
 
     # For each export location, add a link from the export bus to the continental bus
     for location, bus in export_buses.items():
@@ -3390,7 +3389,8 @@ def add_norwegian_hydrogen_exports(n, costs):
             "Link",
             f"Norwegian hydrogen export {location}",
             bus0=bus + " H2",
-            bus1=bus_continental_europe + " H2",
+            # bus1=bus_continental_europe + " H2",
+            bus1="Continental hydrogen demand",
             carrier="H2 export",
             p_nom_extendable=True,
             capital_cost=800000,  # 800 EUR / kW cost of processing the hydrogen for export
