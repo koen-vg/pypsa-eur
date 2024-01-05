@@ -66,7 +66,7 @@ enable:
   prepare_links_p_nom: false
   retrieve_databundle: true
   retrieve_sector_databundle: true
-  retrieve_cost_data: true
+  retrieve_cost_data: false
   build_cutout: false
   retrieve_irena: false
   retrieve_cutout: true

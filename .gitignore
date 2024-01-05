@@ -17,7 +17,7 @@ gurobi.log
 /networks
 /benchmarks
 /logs
-/data
+/data/*
 /cutouts
 
 doc/_build
@@ -25,23 +25,6 @@ doc/_build
 config.yaml
 
 dconf
-/data/links_p_nom.csv
-/data/*totals.csv
-/data/biomass*
-/data/bundle-sector/emobility/
-/data/bundle-sector/eea*
-/data/bundle-sector/jrc*
-/data/heating/
-/data/bundle-sector/eurostat*
-/data/odyssee/
-/data/transport_data.csv
-/data/bundle-sector/switzerland*
-/data/.nfs*
-/data/bundle-sector/Industrial_Database.csv
-/data/retro/tabula-calculator-calcsetbuilding.csv
-/data/bundle-sector/nuts*
-data/gas_network/scigrid-gas/
-data/costs_*.csv
 
 dask-worker-space/
 publications.jrc.ec.europa.eu/
@@ -68,6 +51,6 @@ doc/_build
 
 *.geojson
 
-data/costs_*
-
 merger-todos.md
+
+!/data/costs_*.csv
