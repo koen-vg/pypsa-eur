@@ -869,6 +869,55 @@ def add_norwegian_offwind_minimum_gen(n):
     )
 
 
+def add_norwegian_onshore_constraint(n, region, level):
+    """Constrain the maximum onshore wind installation in Norwegian region."""
+    level_MW = level * 1e3
+
+    if region == "SOUTH":
+        region_cond = n.generators.bus.map(n.buses.y) < 65
+    elif region == "NORTH":
+        region_cond = n.generators.bus.map(n.buses.y) >= 65
+    else:
+        raise ValueError(f"Region {region} not recognized.")
+
+    onshore_NO_gens_total = (
+        (n.generators.carrier == "onwind")
+        & (n.generators.bus.map(n.buses.country) == "NO")
+        & region_cond
+    )
+
+    onshore_NO_gens = n.generators.loc[
+        onshore_NO_gens_total & n.generators.p_nom_extendable
+    ].index
+
+    non_extendable = (
+        n.generators.loc[
+            onshore_NO_gens_total & ~n.generators.p_nom_extendable, "p_nom"
+        ]
+        .sum()
+        .sum()
+    )
+
+    cap = (
+        n.model["Generator-p_nom"]
+        .loc[{"Generator-ext": onshore_NO_gens}]
+        .sum("Generator-ext")
+    )
+    name = f"NO_onshore_{region}_max"
+    n.add(
+        "GlobalConstraint",
+        name=name,
+        type="capacity_bound",
+        carrier_attribute="onwind",
+        sense="<=",
+        constant=level_MW,
+    )
+    n.model.add_constraints(
+        cap + non_extendable <= level_MW,
+        name=f"GlobalConstraint-{name}",
+    )
+
+
 def extra_functionality(n, snapshots):
     """
     Collects supplementary constraints which will be passed to
@@ -892,6 +941,11 @@ def extra_functionality(n, snapshots):
     for o in opts:
         if "EQ" in o:
             add_EQ_constraints(n, o)
+        if o.startswith("LIM"):
+            # `o` looks like "LIM+<alpha_str>+<float>": parse using regex
+            regex = r"LIM\+(\w+)\+([0-9]*\.?[0-9]+)"
+            region, level = re.findall(regex, o)[0]
+            add_norwegian_onshore_constraint(n, region, float(level))
 
     if "offwind" in opts:
         logger.info("Adding Norwegian offshore wind minimum generation.")
