@@ -82,7 +82,10 @@ def param_sweep(param_sweep, scenario, num_nets):
     def build_opt_strs(params: dict[str, float]):
         return "-".join(
             [
-                param_sweep[p]["carrier"] + "+" + param_sweep[p]["attr"] + str(params[p])
+                param_sweep[p]["carrier"]
+                + "+"
+                + param_sweep[p]["attr"]
+                + str(params[p])
                 for p in params
             ]
         )
@@ -120,11 +123,22 @@ def param_sweep(param_sweep, scenario, num_nets):
     ]
 
 
-rule solve_sector_networks_sweep:
+rule link_param_sweep:
     input:
         param_sweep(
             config["param_sweep"], config["scenario"], config["param_sweep_num_nets"]
         ),
+    output:
+        directory(os.path.join(RESULTS, "param_sweep")),
+    shell:
+        """
+        ln -sr "$(dirname '{input[0]}')" "{output}"
+        """
+
+
+rule solve_sector_networks_sweep:
+    input:
+        os.path.join(RESULTS, "param_sweep"),
 
 
 rule solve_sector_networks_perfect:
