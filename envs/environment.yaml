@@ -2,17 +2,21 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-name: pypsa-eur
+name: eu-hydrogen
 channels:
 - conda-forge
 - bioconda
+- gurobi
 dependencies:
 - python>=3.8
 - pip
 
+- gurobi
+
+- ipykernel
+
 - atlite>=0.2.9
 - pypsa>=0.30.2
-- linopy
 - dask
 
   # Dependencies of the workflow itself
@@ -64,3 +68,5 @@ dependencies:
   - snakemake-executor-plugin-slurm
   - snakemake-executor-plugin-cluster-generic
   - highspy
+  # Install a branch of linopy including some memory tweaks
+  - git+https://github.com/koen-vg/linopy.git@v0.3.14.2
