@@ -15,8 +15,8 @@ private:
     entsoe_api:
 
 remote:
-  ssh: ""
-  path: ""
+  ssh: "z1"
+  path: "SCRATCH/projects/pypsa-eur"
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#run
 run:
@@ -34,22 +34,22 @@ scenario:
   simpl:
   - ''
   ll:
-  - v1.5
+  - vopt
   clusters:
   - 37
-  - 128
-  - 256
-  - 512
-  - 1024
+  # - 150
   opts:
   - ''
   sector_opts:
-  - Co2L0-3H-T-H-B-I-A-dist1
+  # - Co2L0-3H-T-H-B-I-A
+  # - Co2L0-2190SEG-T-H-B-I-A
+  # - Co2L0-25H-T-H-B-I-A
+  - Co2L0-97H-T-H-B-I-A
   planning_horizons:
   # - 2020
-  # - 2030
+  - 2030
   # - 2040
-  - 2050
+  # - 2050
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#countries
 countries: ['AL', 'AT', 'BA', 'BE', 'BG', 'CH', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'ME', 'MK', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'SE', 'SI', 'SK']
@@ -365,11 +365,6 @@ existing_capacities:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#sector
 sector:
-  transport: true
-  heating: true
-  biomass: true
-  industry: true
-  agriculture: true
   district_heating:
     potential: 0.6
     progress:
@@ -489,7 +484,7 @@ sector:
   biomass_boiler: true
   chp: true
   micro_chp: false
-  solar_thermal: true
+  solar_thermal: false
   solar_cf_correction: 0.788457  # =  >>> 1/1.2683
   marginal_cost_storage: 0. #1e-4
   methanation: true
@@ -630,7 +625,7 @@ industry:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#costs
 costs:
   year: 2030
-  version: v0.6.2
+  version: v0.6.0
   rooftop_share: 0.14  # based on the potentials, assuming  (0.1 kW/m2 and 10 m2/person)
   social_discountrate: 0.02
   fill_values:
@@ -692,7 +687,6 @@ solving:
     rolling_horizon: false
     seed: 123
     custom_extra_functionality: "../data/custom_extra_functionality.py"
-    # io_api: "direct"  # Increases performance but only supported for the highs and gurobi solvers
     # options that go into the optimize function
     track_iterations: false
     min_iterations: 4
@@ -708,8 +702,8 @@ solving:
     SAFE: false
 
   solver:
-    name: gurobi
-    options: gurobi-default
+    name: copt
+    options: copt-default
 
   solver_options:
     highs-default:
@@ -725,14 +719,14 @@ solving:
       parallel: "on"
       random_seed: 123
     gurobi-default:
-      threads: 4
+      threads: 8
       method: 2 # barrier
       crossover: 0
       BarConvTol: 1.e-6
       Seed: 123
-      AggFill: 0
-      PreDual: 0
-      GURO_PAR_BARDENSETHRESH: 200
+      # AggFill: 0
+      # PreDual: 2
+      # GURO_PAR_BARDENSETHRESH: 200
     gurobi-numeric-focus:
       name: gurobi
       NumericFocus: 3       # Favour numeric stability over speed
@@ -761,15 +755,19 @@ solving:
       solutiontype: 2 # non basic solution, ie no crossover
       barrier.convergetol: 1.e-5
       feasopt.tolerance: 1.e-6
+    copt-vanilla:
+      Threads: 8
     copt-default:
       Threads: 8
       LpMethod: 2
+      Scaling: 1
+      Presolve: 3
       Crossover: 0
     cbc-default: {} # Used in CI
     glpk-default: {} # Used in CI
 
-  mem: 30000 #memory in MB; 20 GB enough for 50+B+I+H2; 100 GB for 181+B+I+H2
-  walltime: "12:00:00"
+  mem: 80000 #memory in MB; 20 GB enough for 50+B+I+H2; 100 GB for 181+B+I+H2
+  walltime: "10:00:00"
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#plotting
 plotting:
@@ -824,6 +822,7 @@ plotting:
     hydroelectricity: '#298c81'
     PHS: '#51dbcc'
     hydro+PHS: "#08ad97"
+    wave: '#a7d4cf'
     # solar
     solar: "#f9d002"
     solar PV: "#f9d002"
