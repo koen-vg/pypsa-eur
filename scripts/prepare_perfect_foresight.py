@@ -318,13 +318,15 @@ def set_carbon_constraints(n, opts):
         )
 
         # drop other CO2 limits
-        drop_i = n.global_constraints[n.global_constraints.type == "co2_limit"].index
+        drop_i = n.global_constraints[
+            n.global_constraints.type == "co2_atmosphere"
+        ].index
         n.mremove("GlobalConstraint", drop_i)
 
         n.add(
             "GlobalConstraint",
             "carbon_neutral",
-            type="co2_limit",
+            type="co2_atmosphere",
             carrier_attribute="co2_emissions",
             sense="<=",
             constant=0,
@@ -377,7 +379,7 @@ def adjust_CO2_glc(n):
     glc_name = "CO2Limit"
     glc_type = "primary_energy"
     mask = (n.df(c).index.str.contains(glc_name)) & (n.df(c).type == glc_type)
-    n.df(c).loc[mask, "type"] = "co2_limit"
+    n.df(c).loc[mask, "type"] = "co2_atmosphere"
 
     return n
 
