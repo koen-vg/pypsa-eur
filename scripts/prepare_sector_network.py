@@ -3780,8 +3780,9 @@ if __name__ == "__main__":
     if options["electricity_grid_connection"]:
         add_electricity_grid_connection(n, costs)
 
-    for k, v in options["transmission_efficiency"].items():
-        lossy_bidirectional_links(n, k, v)
+    if options["transmission_efficiency"]:
+        for k, v in options["transmission_efficiency"].items():
+            lossy_bidirectional_links(n, k, v)
 
     # Workaround: Remove lines with conflicting (and unrealistic) properties
     # cf. https://github.com/PyPSA/pypsa-eur/issues/444
