@@ -524,11 +524,6 @@ if __name__ == "__main__":
     # concat prenetworks of planning horizon to single network ------------
     n = concat_networks(years)
 
-    # temporal aggregate
-    opts = snakemake.wildcards.sector_opts.split("-")
-    solver_name = snakemake.config["solving"]["solver"]["name"]
-    n = set_temporal_aggregation_SEG(n, opts, solver_name)
-
     # adjust global constraints lv limit if the same for all years
     n = adjust_lvlimit(n)
     # adjust global constraints CO2 limit
