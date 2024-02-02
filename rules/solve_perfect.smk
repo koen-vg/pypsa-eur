@@ -132,6 +132,11 @@ rule make_summary_perfect:
             for ll in config["scenario"]["ll"]
         },
         costs="data/costs_2020.csv",
+        costs_plot=expand(
+            RESULTS
+            + "maps/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}-costs-all_{planning_horizons}.pdf",
+            **config["scenario"]
+        ),
     output:
         nodal_costs=RESULTS + "csvs/nodal_costs.csv",
         nodal_capacities=RESULTS + "csvs/nodal_capacities.csv",
