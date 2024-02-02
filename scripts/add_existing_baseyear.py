@@ -17,7 +17,12 @@ import pypsa
 import xarray as xr
 from _helpers import update_config_with_sector_opts
 from add_electricity import sanitize_carriers
-from prepare_sector_network import cluster_heat_buses, define_spatial, prepare_costs
+from prepare_sector_network import (
+    cluster_heat_buses,
+    define_spatial,
+    get_sectors,
+    prepare_costs,
+)
 
 logger = logging.getLogger(__name__)
 cc = coco.CountryConverter()
@@ -593,7 +598,7 @@ if __name__ == "__main__":
         n, grouping_years_power, costs, baseyear
     )
 
-    if "H" in opts:
+    if "heating" in get_sectors(opts, options):
         time_dep_hp_cop = options["time_dep_hp_cop"]
         ashp_cop = (
             xr.open_dataarray(snakemake.input.cop_air_total)

@@ -186,14 +186,29 @@ def define_spatial(nodes, options):
 spatial = SimpleNamespace()
 
 
-def emission_sectors_from_opts(opts):
-    sectors = ["electricity"]
-    if "T" in opts:
-        sectors += ["rail non-elec", "road non-elec"]
-    if "H" in opts:
-        sectors += ["residential non-elec", "services non-elec"]
-    if "I" in opts:
-        sectors += [
+def get_sectors(opts, options):
+    sectors = []
+    for flag, name in [
+        ("T", "transport"),
+        ("H", "heating"),
+        ("I", "industry"),
+        ("B", "biomass"),
+        ("A", "agriculture"),
+    ]:
+        if flag in opts or options.get(name, False):
+            sectors.append(name)
+
+    return sectors
+
+
+def emission_sectors_from_opts(sectors):
+    emission_sectors = ["electricity"]
+    if "transport" in sectors:
+        emission_sectors += ["rail non-elec", "road non-elec"]
+    if "heating" in sectors:
+        emission_sectors += ["residential non-elec", "services non-elec"]
+    if "industry" in sectors:
+        emission_sectors += [
             "industrial non-elec",
             "industrial processes",
             "domestic aviation",
@@ -201,10 +216,10 @@ def emission_sectors_from_opts(opts):
             "domestic navigation",
             "international navigation",
         ]
-    if "A" in opts:
-        sectors += ["agriculture"]
+    if "agriculture" in sectors:
+        emission_sectors += ["agriculture"]
 
-    return sectors
+    return emission_sectors
 
 
 def get(item, investment_year=None):
@@ -215,7 +230,7 @@ def get(item, investment_year=None):
 
 
 def co2_emissions_year(
-    countries, input_eurostat, opts, emissions_scope, report_year, input_co2, year
+    countries, input_eurostat, sectors, emissions_scope, report_year, input_co2, year
 ):
     """
     Calculate CO2 emissions in one specific year (e.g. 1990 or 2018).
@@ -233,7 +248,7 @@ def co2_emissions_year(
 
     co2_totals = build_co2_totals(countries, eea_co2, eurostat_co2)
 
-    sectors = emission_sectors_from_opts(opts)
+    sectors = emission_sectors_from_opts(sectors)
 
     co2_emissions = co2_totals.loc[countries, sectors].sum().sum()
 
@@ -244,11 +259,10 @@ def co2_emissions_year(
 
 
 # TODO: move to own rule with sector-opts wildcard?
-def build_carbon_budget(o, input_eurostat, fn, emissions_scope, report_year):
+def build_carbon_budget(o, input_eurostat, fn, emissions_scope, report_year, sectors):
     """
     Distribute carbon budget following beta or exponential transition path.
     """
-    # opts?
 
     if "be" in o:
         # beta decay
@@ -264,7 +278,7 @@ def build_carbon_budget(o, input_eurostat, fn, emissions_scope, report_year):
     e_1990 = co2_emissions_year(
         countries,
         input_eurostat,
-        opts,
+        sectors,
         emissions_scope,
         report_year,
         input_co2,
@@ -275,7 +289,7 @@ def build_carbon_budget(o, input_eurostat, fn, emissions_scope, report_year):
     e_0 = co2_emissions_year(
         countries,
         input_eurostat,
-        opts,
+        sectors,
         emissions_scope,
         report_year,
         input_co2,
@@ -736,17 +750,17 @@ def add_dac(n, costs):
     )
 
 
-def add_co2limit(n, nyears=1.0, limit=0.0):
+def add_co2limit(n, sectors, nyears=1.0, limit=0.0):
     logger.info(f"Adding CO2 budget limit as per unit of 1990 levels of {limit}")
 
     countries = snakemake.params.countries
 
-    sectors = emission_sectors_from_opts(opts)
+    emission_sectors = emission_sectors_from_opts(sectors)
 
     # convert Mt to tCO2
     co2_totals = 1e6 * pd.read_csv(snakemake.input.co2_totals_name, index_col=0)
 
-    co2_limit = co2_totals.loc[countries, sectors].sum().sum()
+    co2_limit = co2_totals.loc[countries, emission_sectors].sum().sum()
 
     co2_limit *= limit * nyears
 
@@ -3531,9 +3545,10 @@ def lossy_bidirectional_links(n, carrier, efficiencies={}):
     )
 
     n.links.loc[carrier_i, "p_min_pu"] = 0
-    n.links.loc[carrier_i, "efficiency"] = (
-        efficiency_static
-        * efficiency_per_1000km ** (n.links.loc[carrier_i, "length"] / 1e3)
+    n.links.loc[
+        carrier_i, "efficiency"
+    ] = efficiency_static * efficiency_per_1000km ** (
+        n.links.loc[carrier_i, "length"] / 1e3
     )
     rev_links = (
         n.links.loc[carrier_i].copy().rename({"bus0": "bus1", "bus1": "bus0"}, axis=1)
@@ -3639,27 +3654,29 @@ if __name__ == "__main__":
         options["use_fuel_cell_waste_heat"] = False
         options["use_electrolysis_waste_heat"] = False
 
-    if "T" in opts or options.get("transport", False):
+    sectors = get_sectors(opts, options)
+
+    if "transport" in sectors:
         add_land_transport(n, costs)
 
-    if "H" in opts or options.get("heating", False):
+    if "heating" in sectors:
         add_heat(n, costs)
 
-    if "B" in opts or options.get("biomass", False):
+    if "biomass" in sectors:
         add_biomass(n, costs)
 
     if options["ammonia"]:
         add_ammonia(n, costs)
 
-    if "I" in opts or options.get("industry", False):
+    if "industry" in sectors:
         add_industry(n, costs)
 
-    if "H" in opts or options.get("heating", False):
-        add_waste_heat(n)
+        if "heating" in sectors:
+            add_waste_heat(n)
 
-    # requires H and I
-    if "A" in opts or options.get("agriculture", False):
-        add_agriculture(n, costs)
+            # requires H and I
+            if "agriculture" in sectors:
+                add_agriculture(n, costs)
 
     if options["dac"]:
         add_dac(n, costs)
@@ -3697,6 +3714,7 @@ if __name__ == "__main__":
                 emissions_scope,
                 report_year,
                 input_co2,
+                sectors,
             )
         co2_cap = pd.read_csv(fn, index_col=0).squeeze()
         limit = co2_cap.loc[investment_year]
@@ -3709,7 +3727,7 @@ if __name__ == "__main__":
         limit = float(limit.replace("p", ".").replace("m", "-"))
         break
     logger.info(f"Add CO2 limit from {limit_type}")
-    add_co2limit(n, nyears, limit)
+    add_co2limit(n, sectors, nyears, limit)
 
     for o in opts:
         if not o[:10] == "linemaxext":

@@ -11,7 +11,7 @@ import logging
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import pandas as pd
-from prepare_sector_network import co2_emissions_year
+from prepare_sector_network import co2_emissions_year, get_sectors
 
 logger = logging.getLogger(__name__)
 plt.style.use("ggplot")
@@ -354,7 +354,7 @@ def plot_balances():
         fig.savefig(snakemake.output.balances[:-10] + k + ".pdf", bbox_inches="tight")
 
 
-def historical_emissions(countries):
+def historical_emissions(countries, sectors):
     """
     Read historical emissions to add them to the carbon budget plot.
     """
@@ -427,13 +427,13 @@ def historical_emissions(countries):
     )
 
     emissions = co2_totals.loc["electricity"]
-    if "T" in opts:
+    if "transport" in sectors:
         emissions += co2_totals.loc[[i + " non-elec" for i in ["rail", "road"]]].sum()
-    if "H" in opts:
+    if "heating" in sectors:
         emissions += co2_totals.loc[
             [i + " non-elec" for i in ["residential", "services"]]
         ].sum()
-    if "I" in opts:
+    if "industry" in sectors:
         emissions += co2_totals.loc[
             [
                 "industrial non-elec",
@@ -447,7 +447,7 @@ def historical_emissions(countries):
     return emissions
 
 
-def plot_carbon_budget_distribution(input_eurostat):
+def plot_carbon_budget_distribution(input_eurostat, sectors):
     """
     Plot historical carbon emissions in the EU and decarbonization path.
     """
@@ -469,13 +469,13 @@ def plot_carbon_budget_distribution(input_eurostat):
     e_1990 = co2_emissions_year(
         countries,
         input_eurostat,
-        opts,
+        sectors,
         emissions_scope,
         report_year,
         input_co2,
         year=1990,
     )
-    emissions = historical_emissions(countries)
+    emissions = historical_emissions(countries, sectors)
     # add other years https://sdi.eea.europa.eu/data/0569441f-2853-4664-a7cd-db969ef54de0
     emissions.loc[2019] = 2.971372
     emissions.loc[2020] = 2.691958
@@ -585,4 +585,5 @@ if __name__ == "__main__":
     for sector_opts in snakemake.params.sector_opts:
         opts = sector_opts.split("-")
         if any("cb" in o for o in opts) or snakemake.config["foresight"] == "perfect":
-            plot_carbon_budget_distribution(snakemake.input.eurostat)
+            sectors = get_sectors(opts, snakemake.config["sector"])
+            plot_carbon_budget_distribution(snakemake.input.eurostat, sectors)
