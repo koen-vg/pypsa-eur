@@ -113,9 +113,7 @@ rule solve_sector_network_myopic:
             and (config_provider("foresight")(w) == "myopic")
         ),
         planning_horizons=config_provider("scenario", "planning_horizons"),
-        co2_sequestration_potential=config_provider(
-            "sector", "co2_sequestration_potential", default=200
-        ),
+        sector=config_provider("sector"),
         custom_extra_functionality=input_custom_extra_functionality,
     input:
         network=RESULTS

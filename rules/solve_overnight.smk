@@ -8,9 +8,7 @@ rule solve_sector_network:
         solving=config_provider("solving"),
         foresight=config_provider("foresight"),
         planning_horizons=config_provider("scenario", "planning_horizons"),
-        co2_sequestration_potential=config_provider(
-            "sector", "co2_sequestration_potential", default=200
-        ),
+        sector=config_provider("sector")
         custom_extra_functionality=input_custom_extra_functionality,
     input:
         network=RESULTS

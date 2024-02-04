@@ -53,11 +53,11 @@ logger = logging.getLogger(__name__)
 pypsa.pf.logger.setLevel(logging.WARNING)
 
 
-def add_land_use_constraint(n, planning_horizons, config):
-    if "m" in snakemake.wildcards.clusters:
-        _add_land_use_constraint_m(n, planning_horizons, config)
+def add_land_use_constraint(n, planning_horizons, current_horizon, clusters, config):
+    if "m" in clusters:
+        _add_land_use_constraint_m(n, planning_horizons, current_horizon, config)
     else:
-        _add_land_use_constraint(n)
+        _add_land_use_constraint(n, current_horizon)
 
 
 def add_land_use_constraint_perfect(n):
@@ -123,7 +123,7 @@ def add_land_use_constraint_perfect(n):
     return n
 
 
-def _add_land_use_constraint(n):
+def _add_land_use_constraint(n, current_horizon):
     # warning: this will miss existing offwind which is not classed AC-DC and has carrier 'offwind'
 
     for carrier in ["solar", "onwind", "offwind-ac", "offwind-dc", "offwind-float"]:
@@ -136,7 +136,7 @@ def _add_land_use_constraint(n):
             .groupby(n.generators.bus.map(n.buses.location))
             .sum()
         )
-        existing.index += " " + carrier + "-" + snakemake.wildcards.planning_horizons
+        existing.index += " " + carrier + "-" + current_horizon
         n.generators.loc[existing.index, "p_nom_max"] -= existing
 
     # check if existing capacities are larger than technical potential
@@ -155,11 +155,10 @@ def _add_land_use_constraint(n):
     n.generators.p_nom_max.clip(lower=0, inplace=True)
 
 
-def _add_land_use_constraint_m(n, planning_horizons, config):
+def _add_land_use_constraint_m(n, planning_horizons, current_horizon, config):
     # if generators clustering is lower than network clustering, land_use accounting is at generators clusters
 
     grouping_years = config["existing_capacities"]["grouping_years_power"]
-    current_horizon = snakemake.wildcards.planning_horizons
 
     for carrier in ["solar", "onwind", "offwind-ac", "offwind-dc", "offwind-float"]:
         extendable_i = (n.generators.carrier == carrier) & n.generators.p_nom_extendable
@@ -173,7 +172,7 @@ def _add_land_use_constraint_m(n, planning_horizons, config):
         previous_years = [
             str(y)
             for y in set(planning_horizons + grouping_years)
-            if y < int(snakemake.wildcards.planning_horizons)
+            if y < int(current_horizon)
         ]
 
         for p_year in previous_years:
@@ -278,12 +277,11 @@ def add_carbon_budget_constraint(n, snapshots):
             n.model.add_constraints(lhs <= rhs, name=f"GlobalConstraint-{name}")
 
 
-def add_max_growth(n):
+def add_max_growth(n, opts):
     """
     Add maximum growth rates for different carriers.
     """
 
-    opts = snakemake.params["sector"]["limit_max_growth"]
     # take maximum yearly difference between investment periods since historic growth is per year
     factor = n.investment_period_weightings.years.max() * opts["factor"]
     for carrier in opts["max_growth"].keys():
@@ -350,10 +348,12 @@ def add_retrofit_gas_boiler_constraint(n, snapshots):
 def prepare_network(
     n,
     solve_opts=None,
+    clusters=None,
     config=None,
+    sector=None,
     foresight=None,
     planning_horizons=None,
-    co2_sequestration_potential=None,
+    current_horizon=None,
 ):
     if "clip_p_max_pu" in solve_opts:
         for df in (
@@ -406,15 +406,15 @@ def prepare_network(
         n.snapshot_weightings[:] = 8760.0 / nhours
 
     if foresight == "myopic":
-        add_land_use_constraint(n, planning_horizons, config)
+        add_land_use_constraint(n, planning_horizons, current_horizon, clusters, config)
 
     if foresight == "perfect":
         n = add_land_use_constraint_perfect(n)
-        if snakemake.params["sector"]["limit_max_growth"]["enable"]:
-            n = add_max_growth(n)
+        if sector and sector["limit_max_growth"]["enable"]:
+            n = add_max_growth(n, sector["limit_max_growth"])
 
     if n.stores.carrier.eq("co2 sequestered").any():
-        limit = co2_sequestration_potential
+        limit = sector.get("co2_sequestration_potential", 200)
         add_co2_sequestration_limit(n, limit=limit)
 
     return n
@@ -926,8 +926,9 @@ def extra_functionality(n, snapshots):
 
     if n.config["sector"]["endogenous_transport"]:
         add_endogenous_transport_constraints(n, snapshots)
-    if snakemake.params.custom_extra_functionality:
-        source_path = snakemake.params.custom_extra_functionality
+
+    if hasattr(n, "custom_extra_functionality") and "snakemake" in globals():
+        source_path = n.custom_extra_functionality
         assert os.path.exists(source_path), f"{source_path} does not exist"
         sys.path.append(os.path.dirname(source_path))
         module_name = os.path.splitext(os.path.basename(source_path))[0]
@@ -1281,11 +1282,15 @@ if __name__ == "__main__":
     n = prepare_network(
         n,
         solve_opts,
+        clusters=snakemake.wildcards.clusters,
         config=snakemake.config,
+        sector=snakemake.params.sector,
         foresight=snakemake.params.foresight,
         planning_horizons=snakemake.params.planning_horizons,
-        co2_sequestration_potential=snakemake.params["co2_sequestration_potential"],
+        current_horizon=snakemake.wildcards.planning_horizons,
     )
+
+    n.custom_extra_functionality = snakemake.params.custom_extra_functionality
 
     with memory_logger(
         filename=getattr(snakemake.log, "memory", None), interval=0.1
