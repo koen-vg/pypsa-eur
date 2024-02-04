@@ -178,16 +178,11 @@ def _add_land_use_constraint_m(n, planning_horizons, config):
     n.generators.p_nom_max.clip(lower=0, inplace=True)
 
 
-def add_co2_sequestration_limit(n, config, limit=200):
+def add_co2_sequestration_limit(n, limit=200):
     """
     Add a global constraint on the amount of Mt CO2 that can be sequestered.
     """
     limit = limit * 1e6
-    for o in opts:
-        if "seq" not in o:
-            continue
-        limit = float(o[o.find("seq") + 3 :]) * 1e6
-        break
 
     if not n.investment_periods.empty:
         periods = n.investment_periods
@@ -260,12 +255,11 @@ def add_carbon_budget_constraint(n, snapshots):
             n.model.add_constraints(lhs <= rhs, name=f"GlobalConstraint-{name}")
 
 
-def add_max_growth(n, config):
+def add_max_growth(n, opts):
     """
     Add maximum growth rates for different carriers.
     """
 
-    opts = snakemake.params["sector"]["limit_max_growth"]
     # take maximum yearly difference between investment periods since historic growth is per year
     factor = n.investment_period_weightings.years.max() * opts["factor"]
     for carrier in opts["max_growth"].keys():
@@ -331,11 +325,12 @@ def add_retrofit_gas_boiler_constraint(n, snapshots):
 
 def prepare_network(
     n,
+    opts=None,
     solve_opts=None,
     config=None,
+    sector=None,
     foresight=None,
     planning_horizons=None,
-    co2_sequestration_potential=None,
 ):
     if "clip_p_max_pu" in solve_opts:
         for df in (
@@ -392,12 +387,17 @@ def prepare_network(
 
     if foresight == "perfect":
         n = add_land_use_constraint_perfect(n)
-        if snakemake.params["sector"]["limit_max_growth"]["enable"]:
-            n = add_max_growth(n, config)
+        if sector and sector["limit_max_growth"]["enable"]:
+            n = add_max_growth(n, sector["limit_max_growth"])
 
     if n.stores.carrier.eq("co2 sequestered").any():
-        limit = co2_sequestration_potential
-        add_co2_sequestration_limit(n, config, limit=limit)
+        limit = sector.get("co2_sequestration_potential", 200)
+        for o in opts:
+            if "seq" not in o:
+                continue
+            limit = float(o[o.find("seq") + 3 :])
+            break
+        add_co2_sequestration_limit(n, limit)
 
     return n
 
@@ -867,8 +867,8 @@ def extra_functionality(n, snapshots):
     else:
         add_co2_atmosphere_constraint(n, snapshots)
 
-    if snakemake.params.custom_extra_functionality:
-        source_path = snakemake.params.custom_extra_functionality
+    if hasattr(n, "custom_extra_functionality"):
+        source_path = n.custom_extra_functionality
         assert os.path.exists(source_path), f"{source_path} does not exist"
         sys.path.append(os.path.dirname(source_path))
         module_name = os.path.splitext(os.path.basename(source_path))[0]
@@ -906,6 +906,7 @@ def solve_network(n, config, solving, opts="", **kwargs):
     # add to network for extra_functionality
     n.config = config
     n.opts = opts
+    n.custom_extra_functionality = snakemake.params.custom_extra_functionality
 
     if rolling_horizon:
         kwargs["horizon"] = cf_solving.get("horizon", 365)
@@ -967,11 +968,12 @@ if __name__ == "__main__":
 
     n = prepare_network(
         n,
+        opts,
         solve_opts,
         config=snakemake.config,
+        sector=snakemake.params.sector,
         foresight=snakemake.params.foresight,
         planning_horizons=snakemake.params.planning_horizons,
-        co2_sequestration_potential=snakemake.params["co2_sequestration_potential"],
     )
 
     with memory_logger(

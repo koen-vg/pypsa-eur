@@ -8,9 +8,6 @@ rule solve_network:
         solving=config["solving"],
         foresight=config["foresight"],
         planning_horizons=config["scenario"]["planning_horizons"],
-        co2_sequestration_potential=config["sector"].get(
-            "co2_sequestration_potential", 200
-        ),
         custom_extra_functionality=input_custom_extra_functionality,
     input:
         network=RESOURCES + "networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc",

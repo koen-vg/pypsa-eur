@@ -85,9 +85,6 @@ rule solve_sector_network_perfect:
         foresight=config["foresight"],
         sector=config["sector"],
         planning_horizons=config["scenario"]["planning_horizons"],
-        co2_sequestration_potential=config["sector"].get(
-            "co2_sequestration_potential", 200
-        ),
         custom_extra_functionality=input_custom_extra_functionality,
     input:
         network=RESULTS
