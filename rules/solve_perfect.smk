@@ -95,9 +95,6 @@ rule solve_sector_network_perfect:
         foresight=config_provider("foresight"),
         sector=config_provider("sector"),
         planning_horizons=config_provider("scenario", "planning_horizons"),
-        co2_sequestration_potential=config_provider(
-            "sector", "co2_sequestration_potential", default=200
-        ),
         custom_extra_functionality=input_custom_extra_functionality,
     input:
         network=RESULTS

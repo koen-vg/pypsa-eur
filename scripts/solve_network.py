@@ -118,7 +118,7 @@ def add_land_use_constraint_perfect(n):
     return n
 
 
-def add_land_use_constraint(n):
+def add_land_use_constraint(n, current_horizon):
     # warning: this will miss existing offwind which is not classed AC-DC and has carrier 'offwind'
 
     for carrier in [
@@ -137,7 +137,7 @@ def add_land_use_constraint(n):
             .groupby(n.generators.bus.map(n.buses.location))
             .sum()
         )
-        existing.index += " " + carrier + "-" + snakemake.wildcards.planning_horizons
+        existing.index += " " + carrier + "-" + current_horizon
         n.generators.loc[existing.index, "p_nom_max"] -= existing
 
     # check if existing capacities are larger than technical potential
@@ -207,7 +207,7 @@ def add_solar_potential_constraints(n, config):
     n.model.add_constraints(lhs <= rhs, name="solar_potential")
 
 
-def add_co2_sequestration_limit(n, limit_dict):
+def add_co2_sequestration_limit(n, limit_dict, current_horizon):
     """
     Add a global constraint on the amount of Mt CO2 that can be sequestered.
     """
@@ -222,7 +222,7 @@ def add_co2_sequestration_limit(n, limit_dict):
         )
         names = limit.index
     else:
-        limit = get(limit_dict, int(snakemake.wildcards.planning_horizons))
+        limit = get(limit_dict, int(current_horizon))
         periods = [np.nan]
         names = pd.Index(["co2_sequestration_limit"])
 
@@ -290,12 +290,11 @@ def add_carbon_budget_constraint(n, snapshots):
             n.model.add_constraints(lhs <= rhs, name=f"GlobalConstraint-{name}")
 
 
-def add_max_growth(n):
+def add_max_growth(n, opts):
     """
     Add maximum growth rates for different carriers.
     """
 
-    opts = snakemake.params["sector"]["limit_max_growth"]
     # take maximum yearly difference between investment periods since historic growth is per year
     factor = n.investment_period_weightings.years.max() * opts["factor"]
     for carrier in opts["max_growth"].keys():
@@ -362,10 +361,12 @@ def add_retrofit_gas_boiler_constraint(n, snapshots):
 def prepare_network(
     n,
     solve_opts=None,
+    clusters=None,
     config=None,
+    sector=None,
     foresight=None,
     planning_horizons=None,
-    co2_sequestration_potential=None,
+    current_horizon=None,
 ):
     if "clip_p_max_pu" in solve_opts:
         for df in (
@@ -434,21 +435,23 @@ def prepare_network(
         n.snapshot_weightings[:] = 8760.0 / nhours
 
     if foresight == "myopic":
-        add_land_use_constraint(n)
+        add_land_use_constraint(n, current_horizon)
 
     if foresight == "perfect":
         n = add_land_use_constraint_perfect(n)
-        if snakemake.params["sector"]["limit_max_growth"]["enable"]:
-            n = add_max_growth(n)
+        if sector and sector["limit_max_growth"]["enable"]:
+            n = add_max_growth(n, sector["limit_max_growth"])
 
     if n.stores.carrier.eq("co2 sequestered").any():
-        limit_dict = co2_sequestration_potential
-        add_co2_sequestration_limit(n, limit_dict=limit_dict)
+        limit_dict = sector["co2_sequestration_potential"]
+        add_co2_sequestration_limit(
+            n, limit_dict=limit_dict, current_horizon=current_horizon
+        )
 
     return n
 
 
-def add_CCL_constraints(n, config):
+def add_CCL_constraints(n, config, current_horizon):
     """
     Add CCL (country & carrier limit) constraint to the network.
 
@@ -470,7 +473,7 @@ def add_CCL_constraints(n, config):
     """
     agg_p_nom_minmax = pd.read_csv(
         config["solving"]["agg_p_nom_limits"]["file"], index_col=[0, 1], header=[0, 1]
-    )[snakemake.wildcards.planning_horizons]
+    )[current_horizon]
     logger.info("Adding generation capacity constraints per carrier and country")
     p_nom = n.model["Generator-p_nom"]
 
@@ -491,7 +494,7 @@ def add_CCL_constraints(n, config):
         )
         gens_cst = gens_cst[
             (gens_cst["build_year"] + gens_cst["lifetime"])
-            >= int(snakemake.wildcards.planning_horizons)
+            >= int(current_horizon)
         ]
         if config["solving"]["agg_p_nom_limits"]["agg_offwind"]:
             gens_cst = gens_cst.replace(rename_offwind)
@@ -1013,7 +1016,7 @@ def extra_functionality(n, snapshots):
     if config["sector"]["enhanced_geothermal"]["enable"]:
         add_flexible_egs_constraint(n)
 
-    if n.params.custom_extra_functionality:
+    if n.params.custom_extra_functionality and "snakemake" in globals():
         source_path = n.params.custom_extra_functionality
         assert os.path.exists(source_path), f"{source_path} does not exist"
         sys.path.append(os.path.dirname(source_path))
@@ -1325,7 +1328,7 @@ def disaggregate_build_years(n, indices, planning_horizon):
     logger.info(f"Disaggregated build years in {time.time() - t:.1f} seconds")
 
 
-def solve_network(n, config, params, solving, build_year_agg, **kwargs):
+def solve_network(n, config, params, solving, build_year_agg, rule, current_horizon, **kwargs):
     set_of_options = solving["solver"]["options"]
     cf_solving = solving["options"]
 
@@ -1363,7 +1366,7 @@ def solve_network(n, config, params, solving, build_year_agg, **kwargs):
             n, exclude_carriers=build_year_agg["exclude_carriers"]
         )
 
-    if rolling_horizon and snakemake.rule == "solve_operations_network":
+    if rolling_horizon and rule == "solve_operations_network":
         kwargs["horizon"] = cf_solving.get("horizon", 365)
         kwargs["overlap"] = cf_solving.get("overlap", 0)
         n.optimize.optimize_with_rolling_horizon(**kwargs)
@@ -1392,7 +1395,7 @@ def solve_network(n, config, params, solving, build_year_agg, **kwargs):
         raise RuntimeError("Solving status 'infeasible'")
 
     if build_year_agg_enabled:
-        disaggregate_build_years(n, indices, snakemake.wildcards.planning_horizons)
+        disaggregate_build_years(n, indices, current_horizon)
 
     return n
 
@@ -1424,11 +1427,15 @@ if __name__ == "__main__":
     n = prepare_network(
         n,
         solve_opts,
+        clusters=snakemake.wildcards.clusters,
         config=snakemake.config,
+        sector=snakemake.params.sector,
         foresight=snakemake.params.foresight,
         planning_horizons=snakemake.params.planning_horizons,
-        co2_sequestration_potential=snakemake.params["co2_sequestration_potential"],
+        current_horizon=snakemake.wildcards.planning_horizons,
     )
+
+    n.custom_extra_functionality = snakemake.params.custom_extra_functionality
 
     with memory_logger(
         filename=getattr(snakemake.log, "memory", None), interval=30.0
@@ -1439,6 +1446,8 @@ if __name__ == "__main__":
             params=snakemake.params,
             solving=snakemake.params.solving,
             build_year_agg=snakemake.params.get("build_year_agg", {"enable": False}),
+            rule=snakemake.rule,
+            current_horizon=snakemake.wildcards.planning_horizons,
             log_fn=snakemake.log.solver,
         )
 
