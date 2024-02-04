@@ -30,22 +30,23 @@ rule add_existing_baseyear:
         ),
     output:
         RESULTS
-        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
+        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{near_opt}.nc",
     wildcard_constraints:
         # TODO: The first planning_horizon needs to be aligned across scenarios
         # snakemake does not support passing functions to wildcard_constraints
         # reference: https://github.com/snakemake/snakemake/issues/2703
         planning_horizons=config["scenario"]["planning_horizons"][0],  #only applies to baseyear
+        near_opt=r"(_(min|max)[0-9\.]+)?",
     threads: 1
     resources:
         mem_mb=2000,
     log:
         RESULTS
-        + "logs/add_existing_baseyear_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.log",
+        + "logs/add_existing_baseyear_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{near_opt}.log",
     benchmark:
         (
             RESULTS
-            + "benchmarks/add_existing_baseyear/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}"
+            + "benchmarks/add_existing_baseyear/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{near_opt}"
         )
     conda:
         "../envs/environment.yaml"
@@ -83,17 +84,19 @@ rule add_brownfield:
         cop_air_total=resources("cop_air_total_elec_s{simpl}_{clusters}.nc"),
     output:
         RESULTS
-        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
+        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{near_opt}.nc",
+    wildcard_constraints:
+        near_opt=r"(_(min|max)[0-9\.]+)?",
     threads: 4
     resources:
         mem_mb=10000,
     log:
         RESULTS
-        + "logs/add_brownfield_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.log",
+        + "logs/add_brownfield_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{near_opt}.log",
     benchmark:
         (
             RESULTS
-            + "benchmarks/add_brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}"
+            + "benchmarks/add_brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{near_opt}"
         )
     conda:
         "../envs/environment.yaml"
@@ -142,7 +145,46 @@ rule solve_sector_network_myopic:
             RESULTS
             + "benchmarks/solve_sector_network/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}"
         )
+    priority: 10
     conda:
         "../envs/environment.yaml"
     script:
         "../scripts/solve_network.py"
+
+
+rule near_opt_myopic:
+    params:
+        solving=config_provider("solving"),
+        near_opt=config_provider("near_opt"),
+        planning_horizons=config_provider("scenario", "planning_horizons"),
+        sector=config_provider("sector"),
+        # Not supported yet:
+        # custom_extra_functionality=input_custom_extra_functionality,
+    input:
+        network=RESULTS
+        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}.nc",
+        network_opt=RESULTS
+        + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
+    output:
+        RESULTS
+        + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}.nc",
+    shadow:
+        "shallow"
+    log:
+        solver=RESULTS
+        + "logs/near_opt_myopic/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}_solver.log",
+        python=RESULTS
+        + "logs/near_opt_myopic/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}_python.log",
+    threads: solver_threads
+    resources:
+        mem_mb=config_provider("solving", "mem_mb"),
+        runtime=config_provider("solving", "runtime", default="6h"),
+    benchmark:
+        (
+            RESULTS
+            + "benchmarks/solve_sector_network/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}"
+        )
+    conda:
+        "../envs/environment.yaml"
+    script:
+        "../scripts/near_opt_myopic.py"
