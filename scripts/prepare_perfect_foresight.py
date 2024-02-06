@@ -541,8 +541,13 @@ if __name__ == "__main__":
     # set phase outs
     set_all_phase_outs(n)
 
-    # add H2 boiler
-    add_H2_boilers(n)
+    # For now we turn off H2 boilers with retrofitting! This causes
+    # issues with the near-opt workflow, and is not found to be
+    # exploited in "Endogenous learning for green hydrogen in a
+    # sector-coupled energy model for Europe"
+    # (10.1038/s41467-023-39397-2)
+
+    # add_H2_boilers(n)
 
     # set carbon constraints
     opts = snakemake.wildcards.sector_opts.split("-")

@@ -863,7 +863,9 @@ def extra_functionality(n, snapshots):
     if n._multi_invest:
         add_carbon_constraint(n, snapshots)
         add_carbon_budget_constraint(n, snapshots)
-        add_retrofit_gas_boiler_constraint(n, snapshots)
+
+        # Retrofitting gas boilers turned off! See `prepare_perfect_foresight`.
+        # add_retrofit_gas_boiler_constraint(n, snapshots)
     else:
         add_co2_atmosphere_constraint(n, snapshots)
 
