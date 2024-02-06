@@ -3693,8 +3693,11 @@ if __name__ == "__main__":
     if options["allam_cycle"]:
         add_allam(n, costs)
 
-    solver_name = snakemake.config["solving"]["solver"]["name"]
-    n = set_temporal_aggregation(n, opts, solver_name)
+    # Usually this is the time to do time aggregation. With perfect
+    # foresight, this is done in `prepare_perfect_foresight` instead.
+    if snakemake.params.foresight != "perfect":
+        solver_name = snakemake.config["solving"]["solver"]["name"]
+        n = set_temporal_aggregation(n, opts, solver_name)
 
     limit_type = "config"
     limit = get(snakemake.params.co2_budget, investment_year)
