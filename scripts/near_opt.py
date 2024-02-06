@@ -14,12 +14,24 @@ logger = logging.getLogger(__name__)
 pypsa.pf.logger.setLevel(logging.WARNING)
 
 
+def do_mga(n, filename, args):
+    status, condition = pypsa.optimization.abstract.optimize_mga(n, **args)
+    if status == "ok":
+        print(filename)
+        n.export_to_netcdf(filename)
+    else:
+        logger.error(
+            f"Failed to solve {filename} with condition status {status} and condition {condition}"
+        )
+
+
 def near_opt(
     n,
     config,
     solving,
     opts,
     near_opt_config,
+    output_dir,
     **kwargs,
 ):
     # The following solver setup follows that of `solve_network` in `solve_network.py`:
@@ -51,8 +63,8 @@ def near_opt(
     results = []
     networks = []
     with get_context("spawn").Pool(num_parallel) as pool:
-        for slack, sense in itertools.product(
-            near_opt_config.get("slacks", [0.05]), ["min", "max"]
+        for i, (slack, sense) in enumerate(
+            itertools.product(near_opt_config.get("slacks", [0.05]), ["min", "max"])
         ):
             weights = {}
             static = near_opt_config["weights"].get("static", {})
@@ -79,29 +91,25 @@ def near_opt(
             m.config = config
             m.opts = opts
 
-            networks.append(m)
-
-            args = dict(
+            mga_args = dict(
                 weights=weights,
                 slack=slack,
                 sense=sense,
                 model_kwargs=model_kwargs,
                 **kwargs,
             )
+            filename = os.path.join(output_dir, f"{i}.nc")
+
             results.append(
                 pool.apply_async(
-                    pypsa.optimization.abstract.optimize_mga,
-                    (m,),
-                    kwds=args,
+                    do_mga,
+                    (m, filename, mga_args),
                     error_callback=print,
                 )
             )
-            # pypsa.optimization.abstract.optimize_mga(m, **args)
 
         for r in results:
             r.get()
-
-    return networks
 
 
 if __name__ == "__main__":
@@ -137,10 +145,9 @@ if __name__ == "__main__":
 
     n = pypsa.Network(snakemake.input.network)
 
-    # Add objective back to n from meta (currently not
-    # imported/exported)
-    n.objective = n.meta["objective"]
-    n.objective_constant = n.meta["objective_constant"]
+    # Make sure the output directory exists.
+    if not os.path.exists(snakemake.output[0]):
+        os.makedirs(snakemake.output[0])
 
     with memory_logger(
         filename=getattr(snakemake.log, "memory", None), interval=30.0
@@ -151,14 +158,8 @@ if __name__ == "__main__":
             solving=snakemake.params.solving,
             opts=opts,
             near_opt_config=snakemake.params.near_opt_config,
+            output_dir=snakemake.output[0],
             log_fn=snakemake.log.solver,
         )
 
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
-
-    # Make sure the output directory exists.
-    if not os.path.exists(snakemake.output[0]):
-        os.makedirs(snakemake.output[0])
-
-    for i, m in enumerate(networks):
-        m.export_to_netcdf(os.path.join(snakemake.output[0], f"{i}.nc"))
