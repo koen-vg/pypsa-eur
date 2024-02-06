@@ -930,9 +930,10 @@ def solve_network(n, config, solving, opts="", **kwargs):
             f"Solving status '{status}' with termination condition '{condition}'"
         )
     if "infeasible" in condition:
-        labels = n.model.compute_infeasibilities()
-        logger.info(f"Labels:\n{labels}")
-        n.model.print_infeasibilities()
+        if cf_solving.get("print_infeasibilities", True):
+            labels = n.model.compute_infeasibilities()
+            logger.info(f"Labels:\n{labels}")
+            n.model.print_infeasibilities()
         raise RuntimeError("Solving status 'infeasible'")
 
     return n

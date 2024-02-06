@@ -700,6 +700,7 @@ solving:
     transmission_losses: 2
     linearized_unit_commitment: true
     horizon: 365
+    print_infeasibilities: true
 
   constraints:
     CCL: false
