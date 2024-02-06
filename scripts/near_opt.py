@@ -55,11 +55,21 @@ def near_opt(
             near_opt_config.get("slacks", [0.05]), ["min", "max"]
         ):
             weights = {}
-            for c in near_opt_config["weights"]:
+            static = near_opt_config["weights"].get("static", {})
+            for c in static:
                 vars = {}
-                for v in near_opt_config["weights"][c]:
+                for v in static[c]:
+                    w = pd.Series(0, index=n.df(c).index)
+                    for carrier, const in static[c][v].items():
+                        w.loc[n.df(c).carrier == carrier] = const
+                    vars[v] = w
+                weights[c] = vars
+            varying = near_opt_config["weights"].get("varying", {})
+            for c in varying:
+                vars = {}
+                for v in varying[c]:
                     w = pd.DataFrame(0, columns=n.df(c).index, index=n.snapshots)
-                    for carrier, const in near_opt_config["weights"][c][v].items():
+                    for carrier, const in varying[c][v].items():
                         w.loc[:, n.df(c).carrier == carrier] = const
                     vars[v] = w
                 weights[c] = vars
