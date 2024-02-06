@@ -56,7 +56,9 @@ def get_investment_weighting(time_weighting, r=0.01):
     end = time_weighting.cumsum()
     start = time_weighting.cumsum().shift().fillna(0)
     return pd.concat([start, end], axis=1).apply(
-        lambda x: sum(get_social_discount(t, r) for t in range(int(x[0]), int(x[1]))),
+        lambda x: sum(
+            get_social_discount(t, r) for t in range(int(x.iloc[0]), int(x.iloc[1]))
+        ),
         axis=1,
     )
 
@@ -188,7 +190,7 @@ def concat_networks(years):
             pnl = getattr(n, component.list_name + "_t")
             for k in iterkeys(component.pnl):
                 pnl_year = component.pnl[k].copy().reindex(snapshots, level=1)
-                if pnl_year.empty and ~(component.name == "Load" and k == "p_set"):
+                if pnl_year.empty and (not (component.name == "Load" and k == "p_set")):
                     continue
                 if component.name == "Load":
                     static_load = network.loads.loc[network.loads.p_set != 0]
@@ -221,7 +223,7 @@ def concat_networks(years):
     # set investment periods
     n.investment_periods = n.snapshots.levels[0]
     # weighting of the investment period -> assuming last period same weighting as the period before
-    time_w = n.investment_periods.to_series().diff().shift(-1).fillna(method="ffill")
+    time_w = n.investment_periods.to_series().diff().shift(-1).ffill()
     n.investment_period_weightings["years"] = time_w
     # set objective weightings
     objective_w = get_investment_weighting(
@@ -400,7 +402,7 @@ def add_H2_boilers(n):
     c = "Link"
     logger.info("Add H2 boilers.")
     # existing gas boilers
-    mask = n.links.carrier.str.contains("gas boiler") & ~n.links.p_nom_extendable
+    mask = n.links.carrier.str.contains("gas boiler") & (not n.links.p_nom_extendable)
     gas_i = n.links[mask].index
     df = n.links.loc[gas_i]
     # adjust bus 0
