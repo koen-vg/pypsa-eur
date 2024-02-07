@@ -457,6 +457,7 @@ def apply_time_segmentation_perfect(
     raw = raw.dropna(axis=1)
     sn_weightings = {}
 
+    new_values = {}
     for year in raw.index.levels[0]:
         logger.info(f"Find representative snapshots for {year}.")
         raw_t = raw.loc[year]
@@ -481,10 +482,18 @@ def apply_time_segmentation_perfect(
         sn_weightings[year] = pd.Series(
             weightings, index=snapshots, name="weightings", dtype="float64"
         )
+        new_values[year] = segmented.mul(annual_max).set_index(snapshots)
 
     sn_weightings = pd.concat(sn_weightings)
     n.set_snapshots(sn_weightings.index)
     n.snapshot_weightings = n.snapshot_weightings.mul(sn_weightings, axis=0)
+
+    if overwrite_time_dependent:
+        for year in n.snapshots.levels[0]:
+            for component, key in new_values[year].columns.droplevel(2).unique():
+                n.pnl(component)[key].loc[(year,), :] = new_values[year][
+                    component, key
+                ].values
 
     return n
 
