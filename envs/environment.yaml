@@ -16,7 +16,6 @@ dependencies:
 - ipykernel
 
 - atlite>=0.2.9
-- pypsa>=0.26.1
 - linopy
 - dask
 
@@ -64,4 +63,5 @@ dependencies:
 
 
 - pip:
-  - tsam>=2.3.1
+  - git+https://github.com/koen-vg/tsam.git@no-highs
+  - git+https://github.com/koen-vg/PyPSA.git@b93a20a3
