@@ -21,22 +21,43 @@ scenario:
   ll:
   - c1.2
   clusters:
-  - 50
+  - 40
   opts:
   - ''
   sector_opts:
-  - 1p7-500seg-seq200
-  - 1p7-10seg-seq300
-  - 1p7-10seg-seq400
-  - 1p7-10seg-seq500
-  - 1p7-10seg-seq600
-  - 1p7-10seg-seq700
-  - 1p7-500seg-seq800
+  - 1p5-30seg-seq200
+  - 1p5-30seg-seq500
+  - 1p5-30seg-seq800
+  - 1p7-30seg-seq200
+  - 1p7-30seg-seq500
+  - 1p7-30seg-seq800
+  - 2p0-30seg-seq200
+  - 2p0-30seg-seq500
+  - 2p0-30seg-seq800
   planning_horizons:
-  - 2020
+  - 2025
   - 2030
+  - 2035
   - 2040
+  - 2045
   - 2050
+
+near_opt:
+  num_parallel: 6
+  slacks: [0.02, 0.05, 0.1]
+  weights:
+    # static:
+    #   Link:
+    #     p_nom:
+    #       "H2 Electrolysis": 1
+    #       "SMR": 1
+    #       "SMR CC": 1
+    varying:
+      Link:
+        p:
+          "H2 Electrolysis": 1
+          "SMR": 1
+          "SMR CC": 1
 
 # Use full set of countries (default)
 countries: ["AL", "AT", "BA", "BE", "BG", "CH", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR", "HR", "HU", "IE", "IT", "LT", "LU", "LV", "ME", "MK", "NL", "NO", "PL", "PT", "RO", "RS", "SE", "SI", "SK"]
@@ -52,13 +73,6 @@ enable:
   retrieve_irena: true
 
 co2_budget:
-  2020: 0.701
-  2025: 0.524
-  2030: 0.297
-  2035: 0.150
-  2040: 0.071
-  2045: 0.032
-  2050: 0.000
   # For perfect foresight: (from technological learning paper)
   # update of IPCC 6th AR compared to the 1.5SR. (discussed here: https://twitter.com/JoeriRogelj/status/1424743828339167233)
   1p5: 34.2 # 25.7 # Budget in Gt CO2 for 1.5 for Europe, global 420 Gt, assuming per capita share
@@ -70,27 +84,39 @@ co2_budget:
 # Use default configuration for which generators to include
 electricity:
   extendable_carriers:
-    Generator: [solar, onwind, offwind-ac, offwind-dc, OCGT]
-    StorageUnit: [] # battery, H2
-    Store: [battery, H2]
-    Link: [] # H2 pipeline
+    # Extendable renewables are created here, but conventional
+    # extendable generation is handled in sector config section.
+    Generator: [solar, onwind, offwind-ac, offwind-dc]
+    StorageUnit: []
+    Store: []
+    Link: []
 
+  # Don't include powerplants that are already decommissioned.
   powerplants_filter: (DateOut >= 2022 or DateOut != DateOut)
-  custom_powerplants: false
-  everywhere_powerplants: [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
 
-  conventional_carriers: [nuclear, oil, OCGT, CCGT, coal, lignite, geothermal, biomass]
+  # Conventional carriers are all added in prepare_sector_network and add_existing_baseyear
+  conventional_carriers: []
   renewable_carriers: [solar, onwind, offwind-ac, offwind-dc, hydro]
 
   estimate_renewable_capacities:
-    enable: true
-    from_opsd: true
-    year: 2020
-    expansion_limit: false
-    technology_mapping:
-      Offshore: [offwind-ac, offwind-dc]
-      Onshore: [onwind]
-      PV: [solar]
+    enable: false
+    
+# In prepare_sector_network, keep the following existing generators. Note: _do not_ include nuclear as this is added back with historical capacities as a link in sector-coupled network.
+pypsa_eur:
+  Bus:
+  - AC
+  Link:
+  - DC
+  Generator:
+  - onwind
+  - offwind-ac
+  - offwind-dc
+  - solar
+  - ror
+  StorageUnit:
+  - PHS
+  - hydro
+  Store: []
 
 # Use only ERA5 cutout
 atlite:
@@ -188,8 +214,6 @@ sector:
   # Regionalise methanol and oil demand
   regional_methanol_demand: true
   regional_oil_demand: true
-  # Assume a continental CO2 sequestration potential. NB: Use wildcard instead?
-  co2_sequestration_potential: 200
   # Assume 20 EUR / tCO2 sequestered. NB: might need to update this.
   co2_sequestration_cost: 20
   # Model CO2 emissions spatially resolved
@@ -233,15 +257,23 @@ sector:
     # allowing 30% larger than max historic growth
     factor: 1.3
     max_growth:  # unit GW
-      onwind: 16 # onshore max grow so far 16 GW in Europe https://www.iea.org/reports/renewables-2020/wind
-      solar: 28 # solar max grow so far 28 GW in Europe https://www.iea.org/reports/renewables-2020/solar-pv
-      offwind-ac: 35 # offshore max grow so far 3.5 GW in Europe https://windeurope.org/about-wind/statistics/offshore/european-offshore-wind-industry-key-trends-statistics-2019/
-      offwind-dc: 35
+      # onshore max grow so far 16 GW in Europe https://www.iea.org/reports/renewables-2020/wind
+      onwind: 16
+      # solar max grow so far 28 GW in Europe https://www.iea.org/reports/renewables-2020/solar-pv
+      solar: 28
+      # offshore max grow so far 3.5 GW in Europe https://windeurope.org/about-wind/statistics/offshore/european-offshore-wind-industry-key-trends-statistics-2019/
+      offwind-ac: 3.5
+      offwind-dc: 3.5
+      # Hard assumption: 10 GW per year for electrolysis
+      "H2 Electrolysis": 3
+    # The above absolute growth is in addition to the below relative
+    # growth, which is per investment period.
     max_relative_growth:
-      onwind: 3
-      solar: 3
-      offwind-ac: 3
-      offwind-dc: 3
+      onwind: 2
+      solar: 2
+      offwind-ac: 2
+      offwind-dc: 2
+      "H2 Electrolysis": 2
 
 industry:
   # Default assumtions for metal industry energy carrier use:
@@ -287,6 +319,8 @@ solving:
     assign_all_duals: false
     # Use direct solver API
     io_api: "direct"
+    # Don't attempt computing and print infeasibilities
+    print_infeasibilities: false
 
   # Use default gurobi configuration
   solver:
@@ -303,6 +337,7 @@ solving:
       AggFill: 0
       PreDual: 0
       GURO_PAR_BARDENSETHRESH: 200
+      BarHomogeneous: 1
 
   mem: 70000 #memory in MB; 20 GB enough for 50+B+I+H2; 100 GB for 181+B+I+H2
   walltime: "12:00:00"
@@ -311,7 +346,7 @@ compression:
   enable: true
   options:
     zlib: true
-    complevel: 3
+    complevel: 1
     least_significant_digit: 3
 
 # Default plotting configuration
