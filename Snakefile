@@ -40,11 +40,11 @@ localrules:
 
 
 wildcard_constraints:
-    simpl="[a-zA-Z0-9]*",
-    clusters="[0-9]+(m|c)?|all",
-    ll="(v|c)([0-9\.]+|opt)",
-    opts="[-+a-zA-Z0-9\.]*",
-    sector_opts="[-+a-zA-Z0-9\.\s]*",
+    simpl=r"[a-zA-Z0-9]*",
+    clusters=r"[0-9]+(m|c)?|all",
+    ll=r"(v|c)([0-9\.]+|opt)",
+    opts=r"[-+a-zA-Z0-9\.]*",
+    sector_opts=r"[-+a-zA-Z0-9\.\s]*",
 
 
 include: "rules/common.smk"
@@ -105,7 +105,7 @@ rule dag:
     conda:
         "envs/environment.yaml"
     shell:
-        """
+        r"""
         snakemake --rulegraph all | sed -n "/digraph/,\$p" > {output.dot}
         dot -Tpdf -o {output.pdf} {output.dot}
         dot -Tpng -o {output.png} {output.dot}
