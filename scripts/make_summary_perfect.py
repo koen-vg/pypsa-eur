@@ -492,7 +492,7 @@ def calculate_weighted_prices(n, label, weighted_prices):
         else:
             suffix = " " + carrier
 
-        buses = n.buses.index[n.buses.index.str[2:] == suffix]
+        buses = n.buses.index[n.buses.index.str[5:] == suffix]
 
         if buses.empty:
             continue
@@ -503,12 +503,13 @@ def calculate_weighted_prices(n, label, weighted_prices):
             else n.loads_t.p_set.reindex(buses, axis=1)
         )
         for tech in value:
-            names = n.links.index[n.links.index.to_series().str[-len(tech) :] == tech]
-
+            names = n.links.index[
+                n.links.index.to_series().str[-len(tech) - 5 : -5] == tech
+            ]
             if names.empty:
                 continue
 
-            load += n.links_t.p0[names].T.groupby(n.links.loc[names, "bus0"]).sum()
+            load += n.links_t.p0[names].T.groupby(n.links.loc[names, "bus0"]).sum().T
 
         # Add H2 Store when charging
         # if carrier == "H2":
