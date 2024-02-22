@@ -5,7 +5,7 @@ run:
 
 countries: ["AT"]
 
-foresight: "myopic"
+foresight: "overnight"
 
 scenario:
   simpl:
@@ -17,15 +17,9 @@ scenario:
   opts:
   - ""
   sector_opts:
-  - 10SEG-dist1-solar+c1.5
+  - 100seg
   planning_horizons:
   - 2020
-  - 2025
-  - 2030
-  - 2035
-  - 2040
-  - 2045
-  - 2050
 
 electricity:
   extendable_carriers:

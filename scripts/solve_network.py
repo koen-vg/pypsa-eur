@@ -946,13 +946,18 @@ if __name__ == "__main__":
 
     n = pypsa.Network(snakemake.input.network)
 
+    potential = snakemake.params["co2_sequestration_potential"]
+    for o in snakemake.wildcards.sector_opts.split("-"):
+        if "seqpotential" in o:
+            potential = float(o.replace("seqpotential", ""))
+
     n = prepare_network(
         n,
         solve_opts,
         config=snakemake.config,
         foresight=snakemake.params.foresight,
         planning_horizons=snakemake.params.planning_horizons,
-        co2_sequestration_potential=snakemake.params["co2_sequestration_potential"],
+        co2_sequestration_potential=potential,
     )
 
     with memory_logger(
