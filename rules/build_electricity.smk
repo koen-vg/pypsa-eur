@@ -424,6 +424,8 @@ rule add_electricity:
         ),
         regions=resources("regions_onshore.geojson"),
         powerplants=resources("powerplants.csv"),
+        cascading_hydro="data/cascading_hydro.csv",
+        cascading_hydro_inflow="data/cascading_hydro_inflow.csv",
         hydro_capacities=ancient("data/bundle/hydro_capacities.csv"),
         geth_hydro_capacities="data/geth2015_hydro_capacities.csv",
         unit_commitment="data/unit_commitment.csv",

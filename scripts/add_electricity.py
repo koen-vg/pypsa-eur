@@ -662,6 +662,82 @@ def attach_hydro(n, costs, ppl, profile_hydro, hydro_capacities, carriers, **par
         )
 
 
+def attach_cascading_hydro(n: pypsa.Network, cascading_hydro, cascading_hydro_inflow):
+    # Load the hydro data
+    data = pd.read_csv(cascading_hydro, index_col=0)
+    inflow = pd.read_csv(cascading_hydro_inflow, index_col=0, parse_dates=True)
+
+    for i, row in data.iterrows():
+        # TODO: find closest bus to x, y
+        ac_bus = n.buses.iloc[0]["name"]
+
+        n.add(
+            "Bus",
+            name=ac_bus + " reservoir upper " + row["name"],
+            carrier="water",
+            unit="MWh",
+            x=row["x"],
+            y=row["y"],
+        )
+        n.add(
+            "Bus",
+            name=ac_bus + "reservoir lower " + row["name"],
+            carrier="water",
+            x=row["x"],
+            y=row["y"],
+        )
+
+        n.add(
+            "Store",
+            name=ac_bus + " reservoir upper store " + row["name"],
+            bus=ac_bus + "reservoir lower " + row["name"],
+            e_nom=row["upper_capacity"],
+            p_nom_extendable=False,
+            carrier="water",
+        )
+        n.add(
+            "Store",
+            name=ac_bus + " reservoir lower store " + row["name"],
+            bus=ac_bus + "reservoir upper " + row["name"],
+            e_nom=row["lower_capacity"],
+            p_nom_extendable=False,
+            carrier="water",
+        )
+
+        inflow_raw = inflow.loc[n.snapshots, row["name"]]
+
+        n.add(
+            "Generator",
+            name=ac_bus + " reservoir upper inflow " + row["name"],
+            bus=ac_bus + "reservoir upper " + row["name"],
+            p_nom=inflow_raw.max(),
+            p_max_pu=inflow_raw / inflow_raw.max(),
+            carrier="water",
+        )
+
+        n.add(
+            "Link",
+            name=ac_bus + " upper hydro powerplant" + row["name"],
+            bus0=ac_bus + "reservoir upper " + row["name"],
+            bus1=ac_bus,
+            bus2=ac_bus + "reservoir lower " + row["name"],
+            efficiency1=0.7,
+            efficiency2=1.5,
+            p_nom=row["nominal_upper"],
+            carrier="cascading_hydro",
+        )
+
+        n.add(
+            "Link",
+            name=ac_bus + " lower hydro powerplant" + row["name"],
+            bus0=ac_bus + "reservoir lower " + row["name"],
+            bus1=ac_bus,
+            efficiency1=0.7,
+            p_nom=row["nominal_lower"],
+            carrier="cascading_hydro",
+        )
+
+
 def attach_OPSD_renewables(n: pypsa.Network, tech_map: Dict[str, List[str]]) -> None:
     """
     Attach renewable capacities from the OPSD dataset to the network.
@@ -870,6 +946,10 @@ if __name__ == "__main__":
             carriers,
             **p,
         )
+
+    attach_cascading_hydro(
+        n, snakemake.input.cascading_hydro, snakemake.input.cascading_hydro_inflow
+    )
 
     estimate_renewable_caps = params.electricity["estimate_renewable_capacities"]
     if estimate_renewable_caps["enable"]:
