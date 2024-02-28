@@ -45,11 +45,11 @@ logger = logging.getLogger(__name__)
 pypsa.pf.logger.setLevel(logging.WARNING)
 
 
-def add_land_use_constraint(n, planning_horizons, config):
-    if "m" in snakemake.wildcards.clusters:
-        _add_land_use_constraint_m(n, planning_horizons, config)
+def add_land_use_constraint(n, planning_horizons, current_horizon, clusters, config):
+    if "m" in clusters:
+        _add_land_use_constraint_m(n, planning_horizons, current_horizon, config)
     else:
-        _add_land_use_constraint(n)
+        _add_land_use_constraint(n, current_horizon)
 
 
 def add_land_use_constraint_perfect(n):
@@ -115,7 +115,7 @@ def add_land_use_constraint_perfect(n):
     return n
 
 
-def _add_land_use_constraint(n):
+def _add_land_use_constraint(n, current_horizon):
     # warning: this will miss existing offwind which is not classed AC-DC and has carrier 'offwind'
 
     for carrier in ["solar", "onwind", "offwind-ac", "offwind-dc"]:
@@ -128,7 +128,7 @@ def _add_land_use_constraint(n):
             .groupby(n.generators.bus.map(n.buses.location))
             .sum()
         )
-        existing.index += " " + carrier + "-" + snakemake.wildcards.planning_horizons
+        existing.index += " " + carrier + "-" + current_horizon
         n.generators.loc[existing.index, "p_nom_max"] -= existing
 
     # check if existing capacities are larger than technical potential
@@ -147,11 +147,10 @@ def _add_land_use_constraint(n):
     n.generators.p_nom_max.clip(lower=0, inplace=True)
 
 
-def _add_land_use_constraint_m(n, planning_horizons, config):
+def _add_land_use_constraint_m(n, planning_horizons, current_horizon, config):
     # if generators clustering is lower than network clustering, land_use accounting is at generators clusters
 
     grouping_years = config["existing_capacities"]["grouping_years"]
-    current_horizon = snakemake.wildcards.planning_horizons
 
     for carrier in ["solar", "onwind", "offwind-ac", "offwind-dc"]:
         existing = n.generators.loc[n.generators.carrier == carrier, "p_nom"]
@@ -162,7 +161,7 @@ def _add_land_use_constraint_m(n, planning_horizons, config):
         previous_years = [
             str(y)
             for y in planning_horizons + grouping_years
-            if y < int(snakemake.wildcards.planning_horizons)
+            if y < int(current_horizon)
         ]
 
         for p_year in previous_years:
@@ -327,10 +326,12 @@ def prepare_network(
     n,
     opts=None,
     solve_opts=None,
+    clusters=None,
     config=None,
     sector=None,
     foresight=None,
     planning_horizons=None,
+    current_horizon=None,
 ):
     if "clip_p_max_pu" in solve_opts:
         for df in (
@@ -383,7 +384,7 @@ def prepare_network(
         n.snapshot_weightings[:] = 8760.0 / nhours
 
     if foresight == "myopic":
-        add_land_use_constraint(n, planning_horizons, config)
+        add_land_use_constraint(n, planning_horizons, current_horizon, clusters, config)
 
     if foresight == "perfect":
         n = add_land_use_constraint_perfect(n)
@@ -973,10 +974,12 @@ if __name__ == "__main__":
         n,
         opts,
         solve_opts,
+        clusters=snakemake.wildcards.clusters,
         config=snakemake.config,
         sector=snakemake.params.sector,
         foresight=snakemake.params.foresight,
         planning_horizons=snakemake.params.planning_horizons,
+        current_horizon=snakemake.wildcards.planning_horizons,
     )
 
     with memory_logger(
