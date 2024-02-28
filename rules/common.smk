@@ -73,9 +73,11 @@ def solved_previous_horizon(wildcards):
     planning_horizons = config["scenario"]["planning_horizons"]
     i = planning_horizons.index(int(wildcards.planning_horizons))
     planning_horizon_p = str(planning_horizons[i - 1])
+    near_opt_suffix = wildcards.from_near_opt.replace("_opt", "") if wildcards.from_near_opt else ""
     return (
         RESULTS
         + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_"
         + planning_horizon_p
+        + near_opt_suffix
         + ".nc"
     )

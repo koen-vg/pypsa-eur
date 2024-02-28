@@ -46,3 +46,21 @@ rule all_near_opt_perfect:
             RESULTS + "near_opt/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}",
             **config["scenario"]
         ),
+
+
+rule all_near_opt_myopic:
+    input:
+        expand(
+            RESULTS
+            + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_"
+            + str(config["scenario"]["planning_horizons"][-1])
+            + "_max{slack}.nc",
+            **config["scenario"]
+        ),
+        expand(
+            RESULTS
+            + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_"
+            + str(config["scenario"]["planning_horizons"][-1])
+            + "_min{slack}.nc",
+            **config["scenario"]
+        ),

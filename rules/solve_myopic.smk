@@ -26,19 +26,20 @@ rule add_existing_baseyear:
         existing_offwind="data/existing_infrastructure/offwind_capacity_IRENA.csv",
     output:
         RESULTS
-        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
+        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}.nc",
     wildcard_constraints:
         planning_horizons=config["scenario"]["planning_horizons"][0],  #only applies to baseyear
+        from_near_opt=r"(_opt_min[0-9\.]+|_opt_max[0-9\.]+)?",
     threads: 1
     resources:
         mem_mb=2000,
     log:
         LOGS
-        + "add_existing_baseyear_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.log",
+        + "add_existing_baseyear_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}.log",
     benchmark:
         (
             BENCHMARKS
-            + "add_existing_baseyear/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}"
+            + "add_existing_baseyear/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}"
         )
     conda:
         "../envs/environment.yaml"
@@ -60,17 +61,19 @@ rule add_brownfield:
         cop_air_total=RESOURCES + "cop_air_total_elec_s{simpl}_{clusters}.nc",
     output:
         RESULTS
-        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
+        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}.nc",
+    wildcard_constraints:
+        from_near_opt=r"(_opt_min[0-9\.]+|_opt_max[0-9\.]+)?",
     threads: 4
     resources:
         mem_mb=10000,
     log:
         LOGS
-        + "add_brownfield_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.log",
+        + "add_brownfield_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}.log",
     benchmark:
         (
             BENCHMARKS
-            + "add_brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}"
+            + "add_brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}"
         )
     conda:
         "../envs/environment.yaml"
@@ -90,19 +93,22 @@ rule solve_sector_network_myopic:
         custom_extra_functionality=input_custom_extra_functionality,
     input:
         network=RESULTS
-        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
+        + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}.nc",
         costs="data/costs_{planning_horizons}.csv",
         config=RESULTS + "config.yaml",
     output:
         RESULTS
-        + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
+        + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}.nc",
+    wildcard_constraints:
+        # Either empty or of the form "_opt_min<float>" or "_opt_max<float>"
+        from_near_opt=r"(_opt_min[0-9\.]+|_opt_max[0-9\.]+)?",
     shadow:
         "shallow"
     log:
         solver=LOGS
-        + "elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_solver.log",
+        + "elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}_solver.log",
         python=LOGS
-        + "elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_python.log",
+        + "elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}_python.log",
     threads: solver_threads
     resources:
         mem_mb=config["solving"]["mem"],
@@ -110,9 +116,46 @@ rule solve_sector_network_myopic:
     benchmark:
         (
             BENCHMARKS
-            + "solve_sector_network/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}"
+            + "solve_sector_network/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}{from_near_opt}"
         )
     conda:
         "../envs/environment.yaml"
     script:
         "../scripts/solve_network.py"
+
+
+rule near_opt_myopic:
+    params:
+        solving=config["solving"],
+        sector=config["sector"],
+        planning_horizons=config["scenario"]["planning_horizons"],
+        near_opt=config["near_opt"],
+        custom_extra_functionality=input_custom_extra_functionality,
+    input:
+        network=RESULTS
+        + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_opt_{sense}{slack}.nc",
+        costs="data/costs_{planning_horizons}.csv",
+        config=RESULTS + "config.yaml",
+    output:
+        RESULTS
+        + "postnetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}.nc",
+    shadow:
+        "shallow"
+    log:
+        solver=LOGS
+        + "elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}_solver.log",
+        python=LOGS
+        + "elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}_python.log",
+    threads: solver_threads
+    resources:
+        mem_mb=config["solving"]["mem"],
+        walltime=config["solving"].get("walltime", "12:00:00"),
+    benchmark:
+        (
+            BENCHMARKS
+            + "solve_sector_network/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}"
+        )
+    conda:
+        "../envs/environment.yaml"
+    script:
+        "../scripts/near_opt_myopic.py"

@@ -45,6 +45,10 @@ wildcard_constraints:
     ll=r"(v|c)([0-9\.]+|opt)",
     opts=r"[-+a-zA-Z0-9\.]*",
     sector_opts=r"[-+a-zA-Z0-9\.\s]*",
+    planning_horizon=r"[0-9]+",
+    planning_horizons=r"[0-9]+",
+    sense=r"min|max",
+    slack=r"[0-9\.]+",
 
 
 include: "rules/common.smk"
