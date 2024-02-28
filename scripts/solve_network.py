@@ -40,6 +40,7 @@ from _benchmark import memory_logger
 from _helpers import configure_logging, get_opt, update_config_with_sector_opts
 from pypsa.descriptors import get_activity_mask
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
 pypsa.pf.logger.setLevel(logging.WARNING)
@@ -322,6 +323,61 @@ def add_retrofit_gas_boiler_constraint(n, snapshots):
     n.model.add_constraints(lhs == rhs, name="gas_retrofit")
 
 
+def check_transmission_limit(n):
+    """Check if transmission expansion limit is already reached; then turn off.
+
+    In particular, this function checks if the total transmission
+    capital cost or volume implied by s_nom_min and p_nom_min are
+    numerically close to the respective global limit set in
+    n.global_constraints. If so, the nominal capacities are set to the
+    minimum and extendable is turned off; the corresponding global
+    constraint is then dropped.
+    """
+    # Follows `define_transmission_expansion_cost_limit` function from
+    # pypsa/optimization/global_constraints.py
+
+    def substr(s):
+        return re.sub("[\\[\\]\\(\\)]", "", s)
+
+    cols = {"cost": "capital_cost", "volume": "length"}
+    for limit_type in ["cost", "volume"]:
+        glcs = n.global_constraints.query(
+            f"type == 'transmission_expansion_{limit_type}_limit'"
+        )
+
+        for name, glc in glcs.iterrows():
+            car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
+            total = 0
+            ext_i = {}
+            for c in ["Line", "Link"]:
+                attr = nominal_attrs[c]
+
+                ext_i[c] = n.get_extendable_i(c)
+                if ext_i[c].empty:
+                    continue
+
+                ext_i[c] = (
+                    ext_i[c]
+                    .intersection(n.df(c).query("carrier in @car").index)
+                    .rename(ext_i[c].name)
+                )
+
+                total += (
+                    n.df(c).loc[ext_i[c], attr + "_min"]
+                    * n.df(c).loc[ext_i[c], cols[limit_type]]
+                ).sum()
+
+            if np.abs(total - glc.constant) / glc.constant < 1e-6:
+                logging.info(
+                    f"Transmission expansion {limit_type} is already at the limit; turning off."
+                )
+                for c in ["Line", "Link"]:
+                    attr = nominal_attrs[c]
+                    n.df(c).loc[ext_i[c], attr] = n.df(c).loc[ext_i[c], attr + "_min"]
+                    n.df(c).loc[ext_i[c], attr + "_extendable"] = False
+                n.global_constraints.drop(name, inplace=True)
+
+
 def prepare_network(
     n,
     opts=None,
@@ -399,6 +455,10 @@ def prepare_network(
             limit = float(o[o.find("seq") + 3 :])
             break
         add_co2_sequestration_limit(n, limit)
+
+    # Check if transmission is already at the limit; if so, turn of
+    # transmission expansion.
+    check_transmission_limit(n)
 
     return n
 
