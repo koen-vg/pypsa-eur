@@ -930,7 +930,7 @@ def extra_functionality(n, snapshots):
     else:
         add_co2_atmosphere_constraint(n, snapshots)
 
-    if hasattr(n, "custom_extra_functionality"):
+    if hasattr(n, "custom_extra_functionality") and "snakemake" in globals():
         source_path = n.custom_extra_functionality
         assert os.path.exists(source_path), f"{source_path} does not exist"
         sys.path.append(os.path.dirname(source_path))
