@@ -1,0 +1,374 @@
+# SPDX-FileCopyrightText: 2024 Koen van Greevenbroek
+#
+# SPDX-License-Identifier: CC0-1.0
+
+
+remote:
+  ssh: ""
+  path: ""
+
+run:
+  name: "all" # Run all scenarios
+  scenarios:
+    enable: true
+    file: "config/scenarios.yaml"
+  disable_progressbar: true
+  shared_resources: false
+  shared_cutouts: true
+
+foresight: "myopic"
+
+scenario:
+  simpl:
+  - ""
+  ll:
+  - c1.2
+  clusters:
+  - 35
+  opts:
+  - ""
+  sector_opts:
+  - ""
+  planning_horizons:
+  - 2025
+  - 2030
+  - 2035
+  - 2040
+  - 2045
+  - 2050
+  slack:
+  - 0.02
+  - 0.05
+  - 0.1
+
+near_opt:
+  weights:
+    varying:
+      Link:
+        p:
+          "H2 Electrolysis": 1
+
+# Use full set of countries (default)
+# countries: ["AL", "AT", "BA", "BE", "BG", "CH", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR", "HR", "HU", "IE", "IT", "LT", "LU", "LV", "ME", "MK", "NL", "NO", "PL", "PT", "RO", "RS", "SE", "SI", "SK"]
+
+
+# EU-27, exclude Cyprus, Luxembourg, Malta (too small), plus Norway, UK, Switzerland
+countries:
+- "BE"
+- "BG"
+- "CZ"
+- "DK"
+- "DE"
+- "EE"
+- "IE"
+- "GR"
+- "ES"
+- "FR"
+- "HR"
+- "IT"
+- "LV"
+- "LT"
+- "HU"
+- "NL"
+- "AT"
+- "PL"
+- "PT"
+- "RO"
+- "SI"
+- "SK"
+- "FI"
+- "SE"
+- "NO"
+- "GB"
+- "CH"
+
+clustering:
+  temporal:
+    resolution_sector: "1500seg"
+
+
+co2_budget:
+  2020: 0.80  # Historical data (TODO: source??)
+  2025: 0.65
+  2030: 0.45  # EU target
+  2035: 0.275 # Linear interpolation
+  2040: 0.1   # EU target
+  2045: 0.05  # Linear interpolation
+  2050: 0.0   # Net neutrality
+
+
+# Use default configuration for which generators to include
+electricity:
+  extendable_carriers:
+    # Extendable renewables are created here, but conventional
+    # extendable generation is handled in sector config section.
+    Generator: [solar, onwind, offwind-ac, offwind-dc, offwind-float]
+    StorageUnit: []
+    Store: []
+    Link: []
+
+  # Don't include powerplants that are already decommissioned.
+  powerplants_filter: (DateOut >= 2022 or DateOut != DateOut)
+
+  # Conventional carriers are all added in prepare_sector_network and add_existing_baseyear
+  conventional_carriers: []
+  renewable_carriers: [solar, onwind, offwind-ac, offwind-dc, hydro, offwind-float]
+
+  estimate_renewable_capacities:
+    enable: false
+    
+# In prepare_sector_network, keep the following existing generators. Note: _do not_ include nuclear as this is added back with historical capacities as a link in sector-coupled network.
+pypsa_eur:
+  Bus:
+  - AC
+  Link:
+  - DC
+  Generator:
+  - onwind
+  - offwind-ac
+  - offwind-dc
+  - offwind-float
+  - solar
+  - ror
+  StorageUnit:
+  - PHS
+  - hydro
+  Store: []
+
+# Use only ERA5 cutout
+atlite:
+  default_cutout: europe-era5_2013
+  nprocesses: 4
+  show_progress: false
+
+renewable:
+  solar:
+    # Since we use ERA5 for solar, apply recommended correction factor
+    # (https://github.com/PyPSA/pypsa-eur/pull/304)
+    correction_factor: 0.854337
+  hydro:
+    # Upscale historical total production data (used for
+    # normalisation) to current day capacities.
+    eia_correct_by_capacity: true
+    # Approximate missing historical data
+    eia_approximate_missing: true
+
+# Energy totals are calculated for 2019 by default; the last year before the pandemic. 
+energy:
+  energy_totals_year: 2019
+
+sector:
+  # Default transport shares:
+  land_transport_fuel_cell_share:
+    2020: 0
+    2025: 0
+    2030: 0
+    2035: 0
+    2040: 0
+    2045: 0
+    2050: 0
+  land_transport_electric_share:
+    2020: 0
+    2025: 0.15
+    2030: 0.3
+    2035: 0.45
+    2040: 0.7
+    2045: 0.85
+    2050: 1
+  land_transport_ice_share:
+    2020: 1
+    2025: 0.85
+    2030: 0.7
+    2035: 0.55
+    2040: 0.3
+    2045: 0.15
+    2050: 0
+  # Default agriculture fuel shares:
+  agriculture_machinery_electric_share: 0
+  agriculture_machinery_oil_share: 1
+  agriculture_machinery_fuel_efficiency: 0.7
+  agriculture_machinery_electric_efficiency: 0.3
+  # Default shipping options:
+  shipping_hydrogen_liquefaction: false
+  shipping_hydrogen_share:
+    2020: 0
+    2025: 0
+    2030: 0
+    2035: 0
+    2040: 0
+    2045: 0
+    2050: 0
+  shipping_methanol_share:
+    2020: 0
+    2025: 0.15
+    2030: 0.3
+    2035: 0.5
+    2040: 0.7
+    2045: 0.85
+    2050: 1
+  shipping_oil_share:
+    2020: 1
+    2025: 0.85
+    2030: 0.7
+    2035: 0.5
+    2040: 0.3
+    2045: 0.15
+    2050: 0
+  # Default aviation demand:
+  aviation_demand_factor: 1.
+  # Default demand for high value petro-chemicals (HVC):
+  HVC_demand_factor: 1.
+  # Do allow heat venting to prevent potential infeasibility
+  central_heat_vent: true
+  # Allow both grey and blue hydrogen
+  SMR: true
+  SMR_cc: true
+  # No regional oil, methanol demand
+  regional_methanol_demand: false
+  regional_oil_demand: false
+  # Assume 20 EUR / tCO2 sequestered. NB: might need to update this.
+  co2_sequestration_cost: 20
+  # Don't resolve CO2 spatially
+  co2_spatial: false
+  # Don't allow transport of CO2
+  co2network: false
+  # Include ammonia sector
+  ammonia: true
+  # Turn off minimum part load for now (could lead to infeasibility)
+  min_part_load_fischer_tropsch: 0.
+  min_part_load_methanolisation: 0.
+  min_part_load_methanation: 0.
+  # Spatially resolve gas and hydrogen
+  H2_network: true
+  gas_network: true
+  # Don't allow retrofitting
+  H2_retrofit: false
+  # Don't spatially resolve biomass
+  biomass_spatial: false
+  biomass_transport: false
+  # Don't model efficiency losses, and don't model gas & elec distribution grids
+  transmission_efficiency: {}
+  electricity_distribution_grid: false
+  gas_distribution_grid: false
+  # Allow expansion of gas generations, nuclear
+  conventional_generation:
+    OCGT: "gas"
+    nuclear: "uranium"
+  # No growth limits
+  limit_max_growth:
+    enable: false
+
+
+industry:
+  # Default assumtions for metal industry energy carrier use:
+  St_primary_fraction:
+    2020: 0.6
+    2025: 0.55
+    2030: 0.5
+    2035: 0.45
+    2040: 0.4
+    2045: 0.35
+    2050: 0.3
+  DRI_fraction:
+    2020: 0
+    2025: 0
+    2030: 0.05
+    2035: 0.2
+    2040: 0.4
+    2045: 0.7
+    2050: 1
+  H2_DRI: 1.7
+  elec_DRI: 0.322
+  Al_primary_fraction:
+    2020: 0.4
+    2025: 0.375
+    2030: 0.35
+    2035: 0.325
+    2040: 0.3
+    2045: 0.25
+    2050: 0.2
+
+costs:
+  # Technology data repository version
+  version: "koen-vg/technology-data/v0.8.1-2023eur-imports"
+  # Default social discount rate of 2%
+  social_discountrate: 0.02
+
+# Default solving options
+solving:
+  options:
+    # Don't use noisy costs; makes solving time inconsistent
+    noisy_costs: false
+    # Don't model transmission losses
+    transmission_losses: 0
+    # Assign all duals to solution
+    assign_all_duals: false
+    # Use direct solver API
+    io_api: "lp"
+    # Whether to try and print feasibilities
+    print_infeasibilities: false
+
+  # Use default gurobi configuration
+  solver:
+    name: gurobi
+    options: gurobi-default
+
+  solver_options:
+    gurobi-default:
+      threads: 4
+      method: 2 # barrier
+      crossover: 0
+      BarConvTol: 1.e-2
+      Seed: 123
+      AggFill: 0
+      PreDual: 0
+      GURO_PAR_BARDENSETHRESH: 200
+      BarHomogeneous: 0
+
+  mem_mb: 35000 # Memory in MB; current config takes ~30GB with 1500 segments
+  runtime: "100m" # Solving typically takes less than an hour; add some slack
+
+compression:
+  enable: false
+  options:
+    zlib: true
+    complevel: 1
+    least_significant_digit: 3
+
+# Default plotting configuration
+plotting:
+  map:
+    boundaries:
+    color_geomap:
+      ocean: white
+      land: white
+  projection:
+    name: "LambertConformal"
+    central_longitude: 10.
+    central_latitude: 50.
+    standard_parallels: [35, 65]
+  eu_node_location:
+    x: -5.5
+    y: 46.
+  costs_max: 1000
+  costs_threshold: 1
+  energy_max: 20000
+  energy_min: -20000
+  energy_threshold: 50.
+
+  nice_names:
+    OCGT: "Open-Cycle Gas"
+    CCGT: "Combined-Cycle Gas"
+    offwind-ac: "Offshore Wind (AC)"
+    offwind-dc: "Offshore Wind (DC)"
+    onwind: "Onshore Wind"
+    solar: "Solar"
+    PHS: "Pumped Hydro Storage"
+    hydro: "Reservoir & Dam"
+    battery: "Battery Storage"
+    H2: "Hydrogen Storage"
+    lines: "Transmission Lines"
+    ror: "Run of River"
+    load: "Load Shedding"
+    ac: "AC"
+    dc: "DC"
