@@ -12,6 +12,8 @@ if config["enable"].get("prepare_links_p_nom", False):
         threads: 1
         resources:
             mem_mb=1500,
+        group:
+            "build_electricity"
         conda:
             "../envs/environment.yaml"
         script:
@@ -37,6 +39,8 @@ rule build_electricity_demand:
         logs("build_electricity_demand.log"),
     resources:
         mem_mb=5000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -59,6 +63,8 @@ rule build_powerplants:
     threads: 1
     resources:
         mem_mb=5000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -96,6 +102,8 @@ rule base_network:
     threads: 1
     resources:
         mem_mb=1500,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -123,6 +131,8 @@ rule build_shapes:
     threads: 1
     resources:
         mem_mb=1500,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -147,6 +157,8 @@ if config["enable"].get("build_cutout", False):
         threads: config["atlite"].get("nprocesses", 4)
         resources:
             mem_mb=config["atlite"].get("nprocesses", 4) * 1000,
+        group:
+            "build_electricity"
         conda:
             "../envs/environment.yaml"
         script:
@@ -168,6 +180,8 @@ rule build_ship_raster:
         mem_mb=5000,
     benchmark:
         benchmarks("build_ship_raster")
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -208,6 +222,8 @@ rule determine_availability_matrix_MD_UA:
     threads: config["atlite"].get("nprocesses", 4)
     resources:
         mem_mb=config["atlite"].get("nprocesses", 4) * 5000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -282,6 +298,8 @@ rule build_renewable_profiles:
         mem_mb=config["atlite"].get("nprocesses", 4) * 5000,
     wildcard_constraints:
         technology="(?!hydro).*",  # Any technology other than hydro
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -300,6 +318,8 @@ rule build_monthly_prices:
     threads: 1
     resources:
         mem_mb=5000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -327,6 +347,8 @@ rule build_hydro_profile:
         logs("build_hydro_profile.log"),
     resources:
         mem_mb=5000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -352,6 +374,8 @@ rule build_line_rating:
     threads: config["atlite"].get("nprocesses", 4)
     resources:
         mem_mb=config["atlite"].get("nprocesses", 4) * 1000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -420,6 +444,8 @@ rule add_electricity:
     threads: 1
     resources:
         mem_mb=10000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -457,6 +483,8 @@ rule simplify_network:
     threads: 1
     resources:
         mem_mb=12000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -504,6 +532,8 @@ rule cluster_network:
     threads: 1
     resources:
         mem_mb=10000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -529,6 +559,8 @@ rule add_extra_components:
     threads: 1
     resources:
         mem_mb=4000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
@@ -565,6 +597,8 @@ rule prepare_network:
     threads: 1
     resources:
         mem_mb=4000,
+    group:
+        "build_electricity"
     conda:
         "../envs/environment.yaml"
     script:
