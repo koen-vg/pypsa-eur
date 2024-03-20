@@ -12,6 +12,25 @@ if config["enable"]["retrieve"] is False:
     print("Datafile downloads disabled in config[retrieve] or no internet access.")
 
 
+localrules:
+    retrieve_databundle,
+    retrieve_cutout,
+    retrieve_cost_data,
+    retrieve_natura_raster,
+    retrieve_sector_databundle,
+    retrieve_eurostat_data,
+    retrieve_gas_infrastructure_data,
+    retrieve_electricity_demand,
+    retrieve_synthetic_electricity_demand,
+    retrieve_ship_raster,
+    download_copernicus_land_cover,
+    retrieve_luisa_land_cover,
+    download_wdpa,
+    download_wdpa_marine,
+    retrieve_monthly_co2_prices,
+    retrieve_monthly_fuel_prices,
+
+
 if config["enable"]["retrieve"] and config["enable"].get("retrieve_databundle", True):
     datafiles = [
         "je-e-21.03.02.xls",
