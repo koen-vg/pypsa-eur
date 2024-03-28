@@ -261,6 +261,7 @@ if __name__ == "__main__":
     # Base objective slack on optimal network.
     n_opt = pypsa.Network(snakemake.input.network_opt)
     obj_base = n_opt.statistics.capex().sum() + n_opt.statistics.opex().sum()
+    del n_opt
 
     # NB: We _don't_ support custom extra functionality in this script!
     # n.custom_extra_functionality = snakemake.params.custom_extra_functionality
