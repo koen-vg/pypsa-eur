@@ -175,6 +175,9 @@ def near_opt(
     if kwargs["solver_name"] == "gurobi":
         logging.getLogger("gurobipy").setLevel(logging.CRITICAL)
 
+    if "model_options" in solving:
+        model_kwargs = model_kwargs | solving["model_options"]
+
     n.config = config
 
     weights = {}

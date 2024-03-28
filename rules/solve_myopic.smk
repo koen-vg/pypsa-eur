@@ -3,6 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 
+localrules:
+    add_existing_baseyear,
+    add_brownfield,
+
+
 rule add_existing_baseyear:
     params:
         baseyear=config_provider("scenario", "planning_horizons", 0),
@@ -138,8 +143,12 @@ rule solve_sector_network_myopic:
         + "logs/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_python.log",
     threads: solver_threads
     resources:
-        mem_mb=config_provider("solving", "mem_mb"),
-        runtime=config_provider("solving", "runtime", default="6h"),
+        mem_mb=lambda w, attempt: (
+            config_provider("solving", "mem_mb")(w) * 1.2 ** (attempt - 1)
+        ),
+        runtime=lambda w, attempt: (
+            config_provider("solving", "runtime", default="6h")(w) * attempt
+        ),
     benchmark:
         (
             RESULTS
@@ -177,8 +186,12 @@ rule near_opt_myopic:
         + "logs/near_opt_myopic/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}_{sense}{slack}_python.log",
     threads: solver_threads
     resources:
-        mem_mb=config_provider("solving", "mem_mb"),
-        runtime=config_provider("solving", "runtime", default="6h"),
+        mem_mb=lambda w, attempt: (
+            config_provider("solving", "mem_mb")(w) * 1.2 ** (attempt - 1)
+        ),
+        runtime=lambda w, attempt: (
+            1.5 * config_provider("solving", "runtime", default="6h")(w) * attempt
+        ),
     benchmark:
         (
             RESULTS

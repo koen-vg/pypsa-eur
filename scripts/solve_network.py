@@ -1217,6 +1217,9 @@ def solve_network(n, config, solving, **kwargs):
     if kwargs["solver_name"] == "gurobi":
         logging.getLogger("gurobipy").setLevel(logging.CRITICAL)
 
+    if "model_options" in solving:
+        kwargs["model_kwargs"] = solving["model_options"]
+
     rolling_horizon = cf_solving.pop("rolling_horizon", False)
     skip_iterations = cf_solving.pop("skip_iterations", False)
     if not n.lines.s_nom_extendable.any():
