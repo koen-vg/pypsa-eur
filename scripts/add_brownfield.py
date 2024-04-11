@@ -28,10 +28,14 @@ idx = pd.IndexSlice
 def add_brownfield(n, n_p, year):
     logger.info(f"Preparing brownfield for the year {year}")
 
-    # electric transmission grid set optimised capacities of previous as minimum
-    n.lines.s_nom_min = n_p.lines.s_nom_opt
+    # Electric transmission grid set optimised capacities of previous
+    # as minimum. Take minimum with p_nom_max in order to fix small
+    # numerical infeasibilities in p_nom_opt.
+    n.lines.s_nom_min = pd.DataFrame([n_p.lines.s_nom_opt, n_p.lines.s_nom_max]).min()
     dc_i = n.links[n.links.carrier == "DC"].index
-    n.links.loc[dc_i, "p_nom_min"] = n_p.links.loc[dc_i, "p_nom_opt"]
+    n.links.loc[dc_i, "p_nom_min"] = pd.DataFrame(
+        [n_p.links.loc[dc_i, "p_nom_opt"], n_p.links.loc[dc_i, "p_nom_max"]]
+    ).min()
 
     for c in n_p.iterate_components(["Link", "Generator", "Store"]):
         attr = "e" if c.name == "Store" else "p"
@@ -157,7 +161,7 @@ def disable_grid_expansion_if_limit_hit(n):
             ).sum()
 
             # Allow small numerical differences
-            if np.abs(glc.constant - total_expansion) / glc.constant < 1e-6:
+            if np.abs(glc.constant - total_expansion) / glc.constant < 1e-4:
                 logger.info(
                     f"Transmission expansion {limit_type} is already reached, disabling expansion and limit"
                 )
