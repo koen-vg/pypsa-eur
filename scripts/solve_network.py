@@ -673,6 +673,44 @@ def add_SAFE_constraints(n, config):
     n.model.add_constraints(lhs >= rhs, name="safe_mintotalcap")
 
 
+def add_green_imports_lim_constraint(n, config):
+    """Limit the maximum amount of green fuel imports.
+
+    Add a constraint limiting the maximum amount of green fuel imports
+    (i.e. carriers in config["sector"]["green_import_carriers"]) to
+    the total amount of green hydrogen production.
+    """
+    if not config["sector"]["green_imports"]:
+        return
+
+    green_import_carriers = [
+        f"{c} green import" for c in config["sector"]["green_import_carriers"].keys()
+    ]
+
+    green_import_links = n.links.loc[n.links.carrier.isin(green_import_carriers)].index
+    if green_import_links.empty:
+        return
+
+    # Total green fuel imports
+    lhs = (
+        n.model["Link-p"].sel(Link=green_import_links).sum("Link")
+        * n.snapshot_weightings.generators
+    ).sum()
+
+    # Total green hydrogen production
+    electrolysis = n.links.loc[n.links.carrier == "H2 Electrolysis"].index
+
+    rhs = (
+        (
+            n.model["Link-p"].sel(Link=electrolysis)
+            * n.links.loc[electrolysis, "efficiency"]
+        ).sum("Link")
+        * n.snapshot_weightings.generators
+    ).sum()
+
+    n.model.add_constraints(lhs <= rhs, name="green_imports_limit")
+
+
 def add_operational_reserve_margin(n, sns, config):
     """
     Build reserve margin constraints based on the formulation given in
@@ -945,6 +983,8 @@ def extra_functionality(n, snapshots):
         add_SAFE_constraints(n, config)
     if constraints["CCL"] and n.generators.p_nom_extendable.any():
         add_CCL_constraints(n, config)
+    if constraints["green_imports_lim"]:
+        add_green_imports_lim_constraint(n, config)
 
     reserve = config["electricity"].get("operational_reserve", {})
     if reserve.get("activate"):

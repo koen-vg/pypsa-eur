@@ -4570,6 +4570,68 @@ def add_agriculture(n, costs):
         )
 
 
+def add_green_imports(n, costs):
+    """Add option to import green fuels at set marginal cost.
+
+    The importable carriers are specified in the
+    `options["green_import_carriers"]` dict, where each carrier is
+    mapped to the corresponding technology name in `costs` dataframe,
+    where the marginal import cost is assumed to be stored under the
+    `fuel` parameter.
+
+    The imported fuels are considered "green" in that, if they contain
+    any carbon, this carbon has been extracted directly from the
+    atmosphere, meaning that burning the fuel will not cause any net
+    CO2 emissions. This is modelled by causing imports of the fuel to
+    simultaneously extract corresponding amounts of CO2 from the
+    atmosphere.
+    """
+    logger.info(
+        f"Adding green import option for {list(options['green_import_carriers'].keys())}"
+    )
+
+    for carrier, tech in options["green_import_carriers"].items():
+        # Add central bus and generator to create imported green fuels
+        n.add(
+            "Bus",
+            f"EU {carrier} green import",
+            carrier=carrier + " green import",
+        )
+        n.add(
+            "Generator",
+            f"EU {carrier} green import",
+            bus=f"EU {carrier} green import",
+            carrier=carrier + " green import",
+            p_nom_extendable=True,
+            marginal_cost=costs.at[tech, "fuel"],
+        )
+
+        # Then add links from the import bus to all spatial nodes of
+        # the given carrier. Note that the subnames of `spatial`
+        # almost align with carrier names, except for the "H2" carrier
+        # which is associated with `spatial.h2`, hence the `.lower()`.
+        carrier_nodes = getattr(spatial, carrier.lower()).nodes
+        co2_intensity = (
+            costs.fillna(0).at[carrier, "CO2 intensity"]
+            if carrier in costs.index
+            else 0
+        )
+        n.madd(
+            "Link",
+            carrier_nodes,
+            suffix=" green import",
+            bus0=f"EU {carrier} green import",
+            bus1=carrier_nodes,
+            bus2="co2 atmosphere",
+            location=carrier_nodes,
+            efficiency=1,
+            efficiency2=-co2_intensity,
+            carrier=carrier + " green import",
+            p_nom_extendable=True,
+            p_min_pu=0.75,  # Minimum part-load to prevent wild fluctuations
+        )
+
+
 def decentral(n):
     """
     Removes the electricity transmission system.
@@ -5104,6 +5166,9 @@ if __name__ == "__main__":
 
     if options["allam_cycle"]:
         add_allam(n, costs)
+
+    if options["green_imports"]:
+        add_green_imports(n, costs)
 
     n = set_temporal_aggregation(
         n, snakemake.params.time_resolution, snakemake.input.snapshot_weightings

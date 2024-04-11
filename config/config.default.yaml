@@ -444,6 +444,7 @@ sector:
   industry: true
   agriculture: true
   fossil_fuels: true
+  green_imports: true
   district_heating:
     potential: 0.6
     progress:
@@ -749,6 +750,12 @@ sector:
     max_amount: 1390 # TWh
     upstream_emissions_factor: .1 #share of solid biomass CO2 emissions at full combustion
 
+  green_import_carriers:
+    H2: "shipping-lh2"
+    ammonia: "shipping-lnh3"
+    methanol: "shipping-meoh"
+    oil: "shipping-ftfuel"
+    gas: "shipping-lch4"
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#industry
 industry:
@@ -952,6 +959,7 @@ solving:
     EQ: false
     BAU: false
     SAFE: false
+    green_imports_lim: false
 
   solver:
     name: gurobi
@@ -1124,6 +1132,7 @@ plotting:
     gas for industry CC: '#692e0a'
     gas pipeline: '#ebbca0'
     gas pipeline new: '#a87c62'
+    gas green import: '#aee009'
     # oil
     oil: '#c9c9c9'
     oil primary: '#d2d2d2'
@@ -1138,6 +1147,7 @@ plotting:
     agriculture machinery oil: '#949494'
     shipping oil: "#808080"
     land transport oil: '#afafaf'
+    oil green import: '#aee009'
     # nuclear
     Nuclear: '#ff8c00'
     Nuclear marginal: '#ff8c00'
@@ -1304,12 +1314,14 @@ plotting:
     H2 turbine: '#991f83'
     H2 Electrolysis: '#ff29d9'
     H2 electrolysis: '#ff29d9'
+    H2 green import: '#aee009'
     # ammonia
     NH3: '#46caf0'
     ammonia: '#46caf0'
     ammonia store: '#00ace0'
     ammonia cracker: '#87d0e6'
     Haber-Bosch: '#076987'
+    ammonia green import: '#aee009'
     # syngas
     Sabatier: '#9850ad'
     methanation: '#c44ce6'
@@ -1334,6 +1346,7 @@ plotting:
     methanol transport: '#FF7B00'
     shipping methanol: '#468c8b'
     industry methanol: '#468c8b'
+    methanol green import: '#aee009'
     # co2
     CC: '#f29dae'
     CCS: '#f29dae'
