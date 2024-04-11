@@ -390,6 +390,7 @@ sector:
   biomass: true
   industry: true
   agriculture: true
+  green_imports: true
   district_heating:
     potential: 0.6
     progress:
@@ -606,6 +607,12 @@ sector:
       solar: 3
       offwind-ac: 3
       offwind-dc: 3
+  green_import_carriers:
+    H2: "shipping-lh2"
+    ammonia: "shipping-lnh3"
+    methanol: "shipping-meoh"
+    oil: "shipping-ftfuel"
+    gas: "shipping-lch4"
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#industry
 industry:
@@ -946,6 +953,7 @@ plotting:
     gas for industry CC: '#692e0a'
     gas pipeline: '#ebbca0'
     gas pipeline new: '#a87c62'
+    gas green import: '#aee009'
     # oil
     electrobiofuels: '#a1b5ae'
     oil: '#c9c9c9'
@@ -959,6 +967,7 @@ plotting:
     agriculture machinery oil: '#949494'
     shipping oil: "#808080"
     land transport oil: '#afafaf'
+    oil green import: '#aee009'
     # nuclear
     Nuclear: '#ff8c00'
     Nuclear marginal: '#ff8c00'
@@ -1102,12 +1111,14 @@ plotting:
     H2 turbine: '#991f83'
     H2 Electrolysis: '#ff29d9'
     H2 electrolysis: '#ff29d9'
+    H2 green import: '#aee009'
     # ammonia
     NH3: '#46caf0'
     ammonia: '#46caf0'
     ammonia store: '#00ace0'
     ammonia cracker: '#87d0e6'
     Haber-Bosch: '#076987'
+    ammonia green import: '#aee009'
     # syngas
     Sabatier: '#9850ad'
     methanation: '#c44ce6'
@@ -1120,6 +1131,7 @@ plotting:
     methanolisation: '#83d6d5'
     methanol: '#468c8b'
     shipping methanol: '#468c8b'
+    methanol green import: '#aee009'
     # co2
     CC: '#f29dae'
     CCS: '#f29dae'
