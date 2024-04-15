@@ -294,8 +294,6 @@ def calculate_energy(n, label, energy):
                 )
                 # remove values where bus is missing (bug in nomopyomo)
                 no_bus = c.df.index[c.df["bus" + port] == ""]
-                if totals.empty:
-                    continue
                 totals.loc[no_bus] = float(
                     n.component_attrs[c.name].loc["p" + port, "default"]
                 )
@@ -654,14 +652,9 @@ def make_summaries(networks_dict):
     df = {output: pd.DataFrame(columns=columns, dtype=float) for output in outputs}
     for label, filename in networks_dict.items():
         logger.info(f"Make summary for scenario {label}, using {filename}")
-        try:
-            n = pypsa.Network(filename)
-        except FileNotFoundError:
-            logger.info(f"{label} not yet solved.")
-            continue
 
-        if not hasattr(n, "objective"):
-            continue
+        n = pypsa.Network(filename)
+
         assign_carriers(n)
         assign_locations(n)
 
@@ -676,7 +669,6 @@ def to_csv(df):
         df[key].to_csv(snakemake.output[key])
 
 
-# %%
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake

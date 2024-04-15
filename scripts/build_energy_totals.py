@@ -794,8 +794,6 @@ def build_transport_data(countries, population, idees):
 
         transport_data = pd.concat([transport_data, swiss_cars]).sort_index()
 
-    # transport_data.rename(columns={"passenger cars": "number cars"}, inplace=True)
-
     for col in transport_data.columns:
         missing = transport_data.index[transport_data[col].isna()]
         if not missing.empty:
@@ -999,7 +997,6 @@ def rescale_idees_from_eurostat(
     return energy
 
 
-# %%
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake

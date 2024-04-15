@@ -670,8 +670,8 @@ if __name__ == "__main__":
             clusters="37",
             ll="v1.0",
             opts="",
-            sector_opts="49sn-T-H-B-I-A-dist1",
-            planning_horizons=2025,
+            sector_opts="8760-T-H-B-I-A-dist1",
+            planning_horizons=2020,
         )
 
     configure_logging(snakemake)

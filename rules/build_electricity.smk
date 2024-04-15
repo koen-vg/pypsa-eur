@@ -316,7 +316,7 @@ rule build_renewable_profiles:
         benchmarks("build_renewable_profiles_{technology}")
     threads: config["atlite"].get("nprocesses", 4)
     resources:
-        mem_mb=config["atlite"].get("nprocesses", 4) * 10000,
+        mem_mb=config["atlite"].get("nprocesses", 4) * 5000,
     wildcard_constraints:
         technology="(?!hydro).*",  # Any technology other than hydro
     conda:
@@ -494,7 +494,7 @@ rule simplify_network:
         benchmarks("simplify_network/elec_s{simpl}")
     threads: 1
     resources:
-        mem_mb=30000,
+        mem_mb=12000,
     conda:
         "../envs/environment.yaml"
     script:

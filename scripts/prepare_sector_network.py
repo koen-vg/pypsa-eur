@@ -3851,20 +3851,19 @@ def adjust_transport_temporal_agg(n):
         n.links_t.p_min_pu[links_i] = profile
 
 
-# %%
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake
 
         snakemake = mock_snakemake(
             "prepare_sector_network",
-            # configfiles="test/config.overnight.yaml",
+            configfiles="test/config.overnight.yaml",
             simpl="",
             opts="",
             clusters="37",
             ll="v1.0",
-            sector_opts="25sn-T-H-B-I-A-dist1",
-            planning_horizons="2050",
+            sector_opts="CO2L0-24H-T-H-B-I-A-dist1",
+            planning_horizons="2030",
         )
 
     configure_logging(snakemake)

@@ -117,8 +117,7 @@ rule solve_sector_network_perfect:
         + "configs/config.elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_brownfield_all_years.yaml",
     threads: solver_threads
     resources:
-        mem_mb=config_provider("solving", "mem_mb"),
-        runtime=config_provider("solving", "runtime", default="24h"),
+        mem_mb=config_provider("solving", "mem"),
     shadow:
         "shallow"
     log:
