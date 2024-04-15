@@ -23,7 +23,12 @@ from _helpers import (
     update_config_from_wildcards,
 )
 from add_electricity import calculate_annuity, sanitize_carriers, sanitize_locations
-from build_energy_totals import build_co2_totals, build_eea_co2, build_eurostat_co2
+from build_energy_totals import (
+    build_co2_totals,
+    build_eea_co2,
+    build_eurostat,
+    build_eurostat_co2,
+)
 from build_transport_demand import transport_degree_factor
 from networkx.algorithms import complement
 from networkx.algorithms.connectivity.edge_augmentation import k_edge_augmentation
@@ -256,12 +261,10 @@ def co2_emissions_year(
     """
     eea_co2 = build_eea_co2(input_co2, year, emissions_scope)
 
-    # TODO: read Eurostat data from year > 2014
+    eurostat = build_eurostat(input_eurostat, countries)
+
     # this only affects the estimation of CO2 emissions for BA, RS, AL, ME, MK
-    if year > 2014:
-        eurostat_co2 = build_eurostat_co2(input_eurostat, countries, 2014)
-    else:
-        eurostat_co2 = build_eurostat_co2(input_eurostat, countries, year)
+    eurostat_co2 = build_eurostat_co2(eurostat, year)
 
     co2_totals = build_co2_totals(countries, eea_co2, eurostat_co2)
 
@@ -813,6 +816,10 @@ def average_every_nhours(n, offset):
     m = n.copy(with_time=False)
 
     snapshot_weightings = n.snapshot_weightings.resample(offset).sum()
+    sns = snapshot_weightings.index
+    if snakemake.params.drop_leap_day:
+        sns = sns[~((sns.month == 2) & (sns.day == 29))]
+    snapshot_weightings = snapshot_weightings.loc[sns]
     m.set_snapshots(snapshot_weightings.index)
     m.snapshot_weightings = snapshot_weightings
 
@@ -1554,7 +1561,7 @@ def add_EVs(
         carrier="Li ion",
         unit="MWh_el",
     )
-    
+
     # https://ev-database.org/de/cheatsheet/energy-consumption-electric-car
     # average energy consumption 188 Wh/km = 0.188 kWh/km = 18.8 kWh/100 km = 0.0188 MWh/ 100 km
     # 1/0.188 -> 1 MWh = 53.19 * 100 km
@@ -1647,36 +1654,46 @@ def add_EVs(
             lifetime=1,
         )
 
+
 def add_electrobiofuels(n, nodes):
-    
-    print('Adding electrobiofuels')
-    efuel_scale_factor = costs.at['BtL', 'C stored']
-    n.madd("Link",
-           nodes + " electrobiofuels",
-           bus0=spatial.biomass.nodes,
-           bus1=spatial.oil.nodes,
-           bus2=spatial.h2.nodes,
-           bus3="co2 atmosphere",
-           carrier="electrobiofuels",
-           lifetime=costs.at['electrobiofuels', 'lifetime'],
-           efficiency=costs.at['electrobiofuels', 'efficiency-biomass'],
-           efficiency2=-costs.at['electrobiofuels', 'efficiency-hydrogen'],
-           efficiency3=-costs.at['solid biomass', 'CO2 intensity'] + costs.at['BtL', 'CO2 stored'] * (1 - costs.at['Fischer-Tropsch', 'capture rate']),
-           p_nom_extendable=True,
-           capital_cost=costs.at['BtL', 'fixed'] * costs.at['electrobiofuels', 'efficiency-biomass'] \
-                        + efuel_scale_factor * costs.at['Fischer-Tropsch', 'fixed'] * costs.at['electrobiofuels', 'efficiency-hydrogen'],
-           marginal_cost=costs.at['BtL', 'VOM'] * costs.at['electrobiofuels', 'efficiency-biomass'] \
-                         + efuel_scale_factor * costs.at['Fischer-Tropsch', 'VOM'] * costs.at['electrobiofuels', 'efficiency-hydrogen']
-           )
-        
-        
+
+    print("Adding electrobiofuels")
+    efuel_scale_factor = costs.at["BtL", "C stored"]
+    n.madd(
+        "Link",
+        nodes + " electrobiofuels",
+        bus0=spatial.biomass.nodes,
+        bus1=spatial.oil.nodes,
+        bus2=spatial.h2.nodes,
+        bus3="co2 atmosphere",
+        carrier="electrobiofuels",
+        lifetime=costs.at["electrobiofuels", "lifetime"],
+        efficiency=costs.at["electrobiofuels", "efficiency-biomass"],
+        efficiency2=-costs.at["electrobiofuels", "efficiency-hydrogen"],
+        efficiency3=-costs.at["solid biomass", "CO2 intensity"]
+        + costs.at["BtL", "CO2 stored"]
+        * (1 - costs.at["Fischer-Tropsch", "capture rate"]),
+        p_nom_extendable=True,
+        capital_cost=costs.at["BtL", "fixed"]
+        * costs.at["electrobiofuels", "efficiency-biomass"]
+        + efuel_scale_factor
+        * costs.at["Fischer-Tropsch", "fixed"]
+        * costs.at["electrobiofuels", "efficiency-hydrogen"],
+        marginal_cost=costs.at["BtL", "VOM"]
+        * costs.at["electrobiofuels", "efficiency-biomass"]
+        + efuel_scale_factor
+        * costs.at["Fischer-Tropsch", "VOM"]
+        * costs.at["electrobiofuels", "efficiency-hydrogen"],
+    )
+
+
 def add_fuel_cell_cars(n, nodes, p_set, fuel_cell_share, temperature):
 
     # https://h2-mobility.de/wp-content/uploads/2021/02/H2M_Flottenpapier_English_20180822.pdf
     # assume in average 1kg_H2 per 100 km -> 1kg_H2 = 33 kWh_H2 (LHV)
     # 1 MWh_H2 = 30.003 100km
 
-    car_efficiency = 30.003 # options["transport_fuel_cell_efficiency"]
+    car_efficiency = 30.003  # options["transport_fuel_cell_efficiency"]
 
     # temperature corrected efficiency
     efficiency = get_temp_efficency(
@@ -1713,13 +1730,13 @@ def add_fuel_cell_cars(n, nodes, p_set, fuel_cell_share, temperature):
 def add_ice_cars(n, nodes, p_set, ice_share, temperature):
 
     add_carrier_buses(n, "oil")
-    
+
     # average consumption 7 liter per 100 km
     # 0.008889 MWh_petrol = 1 liter
     # 0.062223 MWh_petrol / 100 km
     # 1 MWh_petrol = 16.0712
-    
-    car_efficiency = 16.0712 # options["transport_internal_combustion_efficiency"]
+
+    car_efficiency = 16.0712  # options["transport_internal_combustion_efficiency"]
 
     # temperature corrected efficiency
     efficiency = get_temp_efficency(
@@ -1827,15 +1844,19 @@ def add_land_transport(n, costs):
 
     # read in transport demand in units 100 km
     transport = pd.read_csv(
-        snakemake.input.transport_demand, index_col=[0], header=[0,1],
-        parse_dates=True
+        snakemake.input.transport_demand, index_col=[0], header=[0, 1], parse_dates=True
     )["light"]
-    car_cols = ['Number Passenger cars', 'Number Powered 2-wheelers',
-               'Number Light duty vehicles',
-               'Number Motor coaches, buses and trolley buses',
-               'Number Heavy duty vehicles']
-    number_cars = pd.read_csv(snakemake.input.transport_data, index_col=0,
-                              )[
+    car_cols = [
+        "Number Passenger cars",
+        "Number Powered 2-wheelers",
+        "Number Light duty vehicles",
+        "Number Motor coaches, buses and trolley buses",
+        "Number Heavy duty vehicles",
+    ]
+    number_cars = pd.read_csv(
+        snakemake.input.transport_data,
+        index_col=0,
+    )[
         car_cols
     ].sum(axis=1)
     avail_profile = pd.read_csv(
@@ -1904,8 +1925,8 @@ def add_land_transport(n, costs):
 
     if endogenous:
         adjust_endogenous_transport(n)
-        
-    if options['electrobiofuels']:
+
+    if options["electrobiofuels"]:
         add_electrobiofuels(n, nodes)
 
 
@@ -3156,7 +3177,9 @@ def add_industry(n, costs):
 
     p_set = (
         demand_factor
-        * pop_weighted_energy_totals.loc[nodes, all_aviation].replace(np.inf, 0).sum(axis=1)
+        * pop_weighted_energy_totals.loc[nodes, all_aviation]
+        .replace(np.inf, 0)
+        .sum(axis=1)
         * 1e6
         / nhours
     ).rename(lambda x: x + " kerosene for aviation")
@@ -3867,6 +3890,10 @@ if __name__ == "__main__":
     pop_weighted_energy_totals = (
         pd.read_csv(snakemake.input.pop_weighted_energy_totals, index_col=0) * nyears
     )
+    pop_weighted_heat_totals = (
+        pd.read_csv(snakemake.input.pop_weighted_heat_totals, index_col=0) * nyears
+    )
+    pop_weighted_energy_totals.update(pop_weighted_heat_totals)
 
     patch_electricity_network(n)
 

@@ -13,42 +13,51 @@ import logging
 import numpy as np
 import pandas as pd
 import xarray as xr
-from _helpers import configure_logging, generate_periodic_profiles, set_scenario_config
+from _helpers import (
+    configure_logging,
+    generate_periodic_profiles,
+    get_snapshots,
+    set_scenario_config,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def build_nodal_transport_data(fn, pop_layout):
+def build_nodal_transport_data(fn, pop_layout, year):
     # get numbers of car and fuel efficiency per country
-    transport_data = pd.read_csv(fn, index_col=0)
+    transport_data = pd.read_csv(fn, index_col=[0, 1])
+    transport_data = transport_data.xs(min(2015, year), level="year")
 
     # TODO check what is going wrong in LU
     # transport_data.loc['LU', 'average fuel efficiency heavy duty'] = transport_data.loc['SI', 'average fuel efficiency heavy duty']
-       
+
     # break number of cars down to nodal level based on population density
     nodal_transport_data = transport_data.loc[pop_layout.ct].fillna(0.0)
-   
+
     nodal_transport_data.index = pop_layout.index
-    car_cols = ["Number Passenger cars",
-                "Number Powered 2-wheelers",
-                "Number Light duty vehicles",
-                "Number Motor coaches, buses and trolley buses",
-                "Number Heavy duty vehicles"]
-    
-    nodal_transport_data[car_cols] = (
-        nodal_transport_data[car_cols].mul(pop_layout["fraction"], axis=0)
+    car_cols = [
+        "Number Passenger cars",
+        "Number Powered 2-wheelers",
+        "Number Light duty vehicles",
+        "Number Motor coaches, buses and trolley buses",
+        "Number Heavy duty vehicles",
+    ]
+
+    nodal_transport_data[car_cols] = nodal_transport_data[car_cols].mul(
+        pop_layout["fraction"], axis=0
     )
     # fill missing fuel efficiency [kWh/km] with average data
-    eff_cols = ['average fuel efficiency passenger car',
-                'average fuel efficiency heavy duty']
+    eff_cols = [
+        "average fuel efficiency passenger car",
+        "average fuel efficiency heavy duty",
+    ]
     for col in eff_cols:
         nodal_transport_data.loc[
             nodal_transport_data[col] == 0.0,
             col,
         ] = transport_data[col].mean()
-    
-    return nodal_transport_data
 
+    return nodal_transport_data
 
 
 def get_shape(traffic_fn):
@@ -61,17 +70,19 @@ def get_shape(traffic_fn):
         weekly_profile=traffic.values,
     )
     transport_shape = transport_shape / transport_shape.sum()
-    
+
     return transport_shape
-    
-def build_transport_demand(traffic_fn_Pkw, traffic_fn_Lkw,
-                           airtemp_fn, nodes, nodal_transport_data):
+
+
+def build_transport_demand(
+    traffic_fn_Pkw, traffic_fn_Lkw, airtemp_fn, nodes, nodal_transport_data
+):
     """
     Returns transport demand per bus in unit kinetic energy.
     """
-    transport_shape_light =  get_shape(traffic_fn_Pkw)
-    
-    transport_shape_heavy =  get_shape(traffic_fn_Lkw)
+    transport_shape_light = get_shape(traffic_fn_Pkw)
+
+    transport_shape_heavy = get_shape(traffic_fn_Lkw)
 
     # get heating demand for correction to demand time series
     temperature = xr.open_dataarray(airtemp_fn).to_pandas()
@@ -86,40 +97,68 @@ def build_transport_demand(traffic_fn_Pkw, traffic_fn_Lkw,
     )
 
     # divide out the heating/cooling demand from ICE totals
-    ice_correction_light = (transport_shape_light * (1 + dd_ICE)).sum() / transport_shape_light.sum()
-    ice_correction_heavy = (transport_shape_light * (1 + dd_ICE)).sum() / transport_shape_heavy.sum()
-    
-    light_duty_cols = ['total two-wheel', 'total passenger cars',
-                       'total light duty road freight']
-    
-    heavy_duty_cols = ['total other road passenger',  # motor coaches, buses, trolley buses
-                       'total heavy duty road freight']
-    
+    ice_correction_light = (
+        transport_shape_light * (1 + dd_ICE)
+    ).sum() / transport_shape_light.sum()
+    ice_correction_heavy = (
+        transport_shape_light * (1 + dd_ICE)
+    ).sum() / transport_shape_heavy.sum()
+
+    light_duty_cols = [
+        "total two-wheel",
+        "total passenger cars",
+        "total light duty road freight",
+    ]
+
+    heavy_duty_cols = [
+        "total other road passenger",  # motor coaches, buses, trolley buses
+        "total heavy duty road freight",
+    ]
+
     light_duty = pop_weighted_energy_totals[light_duty_cols].sum(axis=1)
-    
+
     heavy_duty = pop_weighted_energy_totals[heavy_duty_cols].sum(axis=1)
-    
-    rail = pop_weighted_energy_totals["total rail"] - pop_weighted_energy_totals["electricity rail"]
-     
-    def get_demand(transport_shape, energy_totals_transport, nyears,
-                   fuel_efficiency, ice_correction, name):
-        
-        demand = (transport_shape.multiply(energy_totals_transport) * 1e6 * nyears).divide(
-            fuel_efficiency * ice_correction
-        )
-        
+
+    rail = (
+        pop_weighted_energy_totals["total rail"]
+        - pop_weighted_energy_totals["electricity rail"]
+    )
+
+    def get_demand(
+        transport_shape,
+        energy_totals_transport,
+        nyears,
+        fuel_efficiency,
+        ice_correction,
+        name,
+    ):
+
+        demand = (
+            transport_shape.multiply(energy_totals_transport) * 1e6 * nyears
+        ).divide(fuel_efficiency * ice_correction)
+
         return pd.concat([demand], keys=[name], axis=1)
 
-    demand_light = get_demand(transport_shape_light, light_duty, nyears,
-                              # convert 1 kWh/km = 0.1 MWh/ 100 km
-                              0.1*nodal_transport_data["average fuel efficiency passenger car"],
-                              ice_correction_light, name="light")
-    demand_heavy = get_demand(transport_shape_heavy, (heavy_duty + rail), nyears,
-                              0.1*nodal_transport_data["average fuel efficiency heavy duty"],
-                              ice_correction_heavy, name="heavy")
-    
+    demand_light = get_demand(
+        transport_shape_light,
+        light_duty,
+        nyears,
+        # convert 1 kWh/km = 0.1 MWh/ 100 km
+        0.1 * nodal_transport_data["average fuel efficiency passenger car"],
+        ice_correction_light,
+        name="light",
+    )
+    demand_heavy = get_demand(
+        transport_shape_heavy,
+        (heavy_duty + rail),
+        nyears,
+        0.1 * nodal_transport_data["average fuel efficiency heavy duty"],
+        ice_correction_heavy,
+        name="heavy",
+    )
+
     return pd.concat([demand_light, demand_heavy], axis=1)
-   
+
 
 def transport_degree_factor(
     temperature,
@@ -203,7 +242,7 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "build_transport_demand",
             simpl="",
-            clusters=37,
+            clusters=60,
         )
     configure_logging(snakemake)
     set_scenario_config(snakemake)
@@ -218,12 +257,15 @@ if __name__ == "__main__":
 
     options = snakemake.params.sector
 
-    snapshots = pd.date_range(freq="h", **snakemake.params.snapshots, tz="UTC")
+    snapshots = get_snapshots(
+        snakemake.params.snapshots, snakemake.params.drop_leap_day, tz="UTC"
+    )
 
     nyears = len(snapshots) / 8760
 
+    energy_totals_year = snakemake.params.energy_totals_year
     nodal_transport_data = build_nodal_transport_data(
-        snakemake.input.transport_data, pop_layout
+        snakemake.input.transport_data, pop_layout, energy_totals_year
     )
 
     transport_demand = build_transport_demand(
