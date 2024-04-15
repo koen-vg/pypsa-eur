@@ -1800,32 +1800,6 @@ def adjust_endogenous_transport(n):
         "land transport oil": cost_ICE,
     }
 
-    # add dummy generator only needed for solving with glpk with higher solver tolerance
-    n.add("Carrier", "dummy transport", color="#dd2e23", nice_name="Dummy transport")
-    buses_i = n.buses[n.buses.carrier == "land transport demand"].index
-    n.madd(
-        "Generator",
-        buses_i,
-        " load",
-        bus=buses_i,
-        carrier="load",
-        marginal_cost=1e9,
-        p_nom=1e5,
-    )
-
-    # n.madd(
-    #     "Generator",
-    #     buses_i,
-    #     " load negative",
-    #     bus=buses_i,
-    #     carrier="load",
-    #     marginal_cost=1e9,
-    #     p_nom=1e5,
-    #     p_max_pu=0,
-    #     p_min_pu=-1,
-    #     sign=-1,
-    # )
-
     for car_type, cost in costs_car_type.items():
         car_i = n.links[n.links.carrier == car_type].index
         n.links.loc[car_i, "capital_cost"] = cost
