@@ -197,6 +197,7 @@ def near_opt(
             w = pd.DataFrame(0, columns=n.df(c).index, index=n.snapshots)
             for carrier, const in varying[c][v].items():
                 w.loc[:, n.df(c).carrier == carrier] = const
+            w = w.multiply(n.snapshot_weightings.objective, axis=0)
             vars[v] = w
         weights[c] = vars
 
