@@ -28,7 +28,22 @@ scenario:
   opts:
   - ""
   sector_opts:
-  - ""
+  - "Ea-Ca-La-Ia"
+  - "Eb-Ca-La-Ia"
+  - "Ea-Cb-La-Ia"
+  - "Eb-Cb-La-Ia"
+  - "Ea-Ca-Lb-Ia"
+  - "Eb-Ca-Lb-Ia"
+  - "Ea-Cb-Lb-Ia"
+  - "Eb-Cb-Lb-Ia"
+  - "Ea-Ca-La-Ib"
+  - "Eb-Ca-La-Ib"
+  - "Ea-Cb-La-Ib"
+  - "Eb-Cb-La-Ib"
+  - "Ea-Ca-Lb-Ib"
+  - "Eb-Ca-Lb-Ib"
+  - "Ea-Cb-Lb-Ib"
+  - "Eb-Cb-Lb-Ib"
   planning_horizons:
   - 2025
   - 2030

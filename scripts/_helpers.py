@@ -27,6 +27,70 @@ logger = logging.getLogger(__name__)
 REGION_COLS = ["geometry", "name", "x", "y", "country"]
 
 
+CC_tech_carriers = [
+    "SMR CC",
+    "biomass to liquid",
+    "urban central gas CHP CC",
+    "biogas to gas CC",
+    "urban central solid biomass CHP CC",
+    "solid biomass for industry CC",
+    "gas for industry CC",
+    "process emissions CC",
+]
+
+
+map_opts_to_config = {
+    "electrolysis_cost": [["adjustments", "sector", "capital_cost", "H2 Electrolysis"]],
+    "CC_cost": [
+        ["adjustments", "sector", "capital_cost", carrier]
+        for carrier in CC_tech_carriers
+    ],
+    "co2_sequestration_cost": [["sector", "co2_sequestration_cost"]],
+    "co2_sequestration_potential": [["sector", "co2_sequestration_potential"]],
+    "land_use": [
+        ["adjustments", "sector", "p_nom_max", "onwind"],
+        ["adjustments", "sector", "p_nom_max", "solar"],
+    ],
+    "green_imports": [["sector", "green_imports"]],
+}
+
+
+scenarios = {
+    "E": {
+        "a": {"electrolysis_cost": 0.5},
+        "b": {"electrolysis_cost": 1.5},
+    },
+    # CCS and adjacent technologies
+    "C": {
+        "a": {
+            # Bring the cost of SMR CC close to the cost of SMR
+            # without CC (which is 86.2% the cost of SMR CC by
+            # default)
+            "CC_cost": 0.9,
+            # An optimistic cost of co2 sequestration (assumption) [€/tCO2]
+            "co2_sequestration_cost": 15,
+            # Source?
+            "co2_sequestration_potential": 2000,
+        },
+        "b": {
+            "CC_cost": 1.5,
+            "co2_sequestration_cost": 30,  # [€/tCO2]
+            "co2_sequestration_potential": 400,
+        },
+    },
+    # Land use
+    "L": {
+        "a": {"land_use": 0.5},
+        "b": {"land_use": 1},
+    },
+    # Imports
+    "I": {
+        "a": {"green_imports": False},
+        "b": {"green_imports": True},
+    },
+}
+
+
 def copy_default_files(workflow):
     default_files = {
         "config/config.default.yaml": "config/config.yaml",
@@ -528,6 +592,22 @@ def parse(infix):
         return {infix.pop(0): parse(infix)}
 
 
+def list_to_nested_dict(l):
+    if len(l) == 1:
+        return l[0]
+    else:
+        return {l[0]: list_to_nested_dict(l[1:])}
+
+
+def apply_scenarios(config, opts):
+    for s in scenarios:
+        for v in scenarios[s]:
+            if f"{s}{v}" in opts:
+                for opt, val in scenarios[s][v].items():
+                    for path in map_opts_to_config[opt]:
+                        update_config(config, list_to_nested_dict(path + [val]))
+
+
 def update_config_from_wildcards(config, w, inplace=True):
     """
     Parses configuration settings from wildcards and updates the config.
@@ -697,6 +777,21 @@ def update_config_from_wildcards(config, w, inplace=True):
 
         if "aggBuildYear" in opts:
             config["clustering"]["build_year_aggregation"] = True
+
+        _, seq_cost = find_opt(opts, "seqcost")
+        if seq_cost is not None:
+            config["sector"]["co2_sequestration_cost"] = seq_cost
+
+        _, CC_cost = find_opt(opts, "CCcost")
+        if CC_cost is not None:
+            for carrier in CC_tech_carriers:
+                update_config(
+                    config["adjustments"]["sector"],
+                    {"capital_cost": {carrier: CC_cost}},
+                )
+
+        # Apply custom scenarios from wildcards.
+        apply_scenarios(config, opts)
 
         # any config option can be represented in wildcard
         for o in opts:
