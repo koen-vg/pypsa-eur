@@ -898,6 +898,14 @@ def add_norwegian_onshore_constraint(n, region, level):
         .sum()
     )
 
+    # If the non_extendable capacity is already above the limit, do not add constraint
+    if non_extendable >= level_MW:
+        logger.info(
+            f"Non-extendable onshore wind capacity in region {region} already exceeds the limit; skipping constraint but turning off extendable generators."
+        )
+        n.generators.loc[onshore_NO_gens, "p_nom_extendable"] = False
+        return
+
     cap = (
         n.model["Generator-p_nom"]
         .loc[{"Generator-ext": onshore_NO_gens}]
