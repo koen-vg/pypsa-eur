@@ -791,7 +791,7 @@ rule prepare_sector_network:
         mem_mb=2000,
     log:
         LOGS
-        + "prepare_sector_network_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.log",
+        + "prep_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.log",
     benchmark:
         (
             BENCHMARKS

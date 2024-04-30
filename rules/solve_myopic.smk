@@ -33,7 +33,7 @@ rule add_existing_baseyear:
         mem_mb=2000,
     log:
         LOGS
-        + "add_existing_baseyear_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.log",
+        + "baseyear_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.log",
     benchmark:
         (
             BENCHMARKS
