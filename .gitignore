@@ -49,8 +49,6 @@ doc/_build
 
 *.xls
 
-*.geojson
-
 merger-todos.md
 
 !/data/costs_*.csv
