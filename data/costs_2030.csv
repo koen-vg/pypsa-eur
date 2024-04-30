@@ -718,7 +718,7 @@ fuel cell,efficiency,0.5,per unit,"Danish Energy Agency, technology_data_for_el_
 fuel cell,investment,1100.0,EUR/kW_e,"Danish Energy Agency, technology_data_for_el_and_dh.xlsx",12 LT-PEMFC CHP:  Nominal investment
 fuel cell,lifetime,10.0,years,"Danish Energy Agency, technology_data_for_el_and_dh.xlsx",12 LT-PEMFC CHP:  Technical lifetime
 gas,CO2 intensity,0.198,tCO2/MWh_th,Stoichiometric calculation with 50 GJ/t CH4,
-gas,fuel,20.1,EUR/MWh_th,BP 2019,
+gas,fuel,23.5,EUR/MWh_th,BP 2019,
 gas boiler steam,FOM,4.18,%/year,"Danish Energy Agency, technology_data_for_industrial_process_heat.xlsx",311.1c Steam boiler Gas:  Fixed O&M
 gas boiler steam,VOM,1.0,EUR/MWh,"Danish Energy Agency, technology_data_for_industrial_process_heat.xlsx",311.1c Steam boiler Gas:  Variable O&M
 gas boiler steam,efficiency,0.93,per unit,"Danish Energy Agency, technology_data_for_industrial_process_heat.xlsx","311.1c Steam boiler Gas:  Total efficiency, net, annual average"
@@ -914,8 +914,9 @@ waste CHP CC,investment,8110.3941,EUR/kW_e,"Danish Energy Agency, technology_dat
 waste CHP CC,lifetime,25.0,years,"Danish Energy Agency, technology_data_for_el_and_dh.xlsx","08 WtE CHP, Large, 50 degree:  Technical lifetime"
 water tank charger,efficiency,0.8367,per unit,"Danish Energy Agency, technology_data_catalogue_for_energy_storage.xlsx",:  efficiency from sqr(Round trip efficiency)
 water tank discharger,efficiency,0.8367,per unit,"Danish Energy Agency, technology_data_catalogue_for_energy_storage.xlsx",:  efficiency from sqr(Round trip efficiency)
-H2 export,investment,800,EUR/kW_th,assumption
-H2 export,efficiency,0.7,per unit,assumption
-H2 export,VOM,0.001,EUR/MWh/km,assumption
-H2 export,FOM,2,%/year,assumption
-H2 export,lifetime,20,years,assumption
+H2 export,investment,1234,EUR/kW_th,Based on ammonia synthesis
+H2 export,electricity-input,0.335,MWh_el/MWh_NH3,https://dechema.de/dechema_media/Downloads/Positionspapiere/Technology_study_Low_carbon_energy_and_feedstock_for_the_European_chemical_industry.pdf
+H2 export,hydrogen-input,1.15,MWh_H2/MWh_NH3,https://dechema.de/dechema_media/Downloads/Positionspapiere/Technology_study_Low_carbon_energy_and_feedstock_for_the_European_chemical_industry.pdf
+H2 export,VOM,0.00116,EUR/MWh/km,doi:10.1039/D1SE00345C
+H2 export,FOM,2,%/year,Based on ammonia synthesis
+H2 export,lifetime,30,years,Based on ammonia synthesis
