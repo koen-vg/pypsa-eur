@@ -3092,6 +3092,7 @@ def maybe_adjust_costs_and_potentials(n, opts):
                 "c": "capital_cost",
                 "m": "marginal_cost",
                 "f": "efficiency",
+                "g": "efficiency2",
             }
             attr = attr_lookup[oo[1][0]]
             factor = float(oo[1][1:])
@@ -3105,6 +3106,8 @@ def maybe_adjust_costs_and_potentials(n, opts):
                     comps = {"Store"}
                 elif attr == "efficiency":
                     comps = {"Link", "Generator"}
+                elif attr == "efficiency2":
+                    comps = {"Link"}
                 else:
                     comps = {"Generator", "Link", "StorageUnit", "Store"}
                 for c in n.iterate_components(comps):
@@ -3366,8 +3369,7 @@ def add_norwegian_hydrogen_exports(n, costs):
         ) ** 2
         export_buses[location] = buses_norway[distances_sq.argmin()]
 
-    # For the continental bus, choose the first bus located in Germany
-    # bus_continental_europe = n.buses.index[n.buses.country == "DE"][0]
+    cf_industry = snakemake.params.industry
 
     # For each export location, add a link from the export bus to the continental bus
     for location, bus in export_buses.items():
@@ -3378,13 +3380,22 @@ def add_norwegian_hydrogen_exports(n, costs):
             "Link",
             f"Norwegian hydrogen export {location}",
             bus0=bus + " H2",
-            # bus1=bus_continental_europe + " H2",
-            bus1="Continental hydrogen demand",
+            bus1=bus,
+            bus2="Continental hydrogen demand",
             carrier="H2 export",
             p_nom_extendable=True,
+            # efficiency1 (how much electricity is withdrawn) is relative to first input.
+            efficiency=(
+                -costs.at["Haber-Bosch", "electricity-input"]
+                / costs.at["Haber-Bosch", "hydrogen-input"]
+            ),
+            efficiency2=1 / costs.at["Haber-Bosch", "hydrogen-input"],
             capital_cost=costs.at["H2 export", "fixed"],
-            efficiency=costs.at["H2 export", "efficiency"],
-            marginal_cost=d * costs.at["H2 export", "VOM"],
+            marginal_cost=(
+                d
+                * costs.at["H2 export", "VOM"]
+                * costs.at["Haber-Bosch", "hydrogen-input"]
+            ),
         )
 
 
