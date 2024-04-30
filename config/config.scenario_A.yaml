@@ -6,21 +6,53 @@ foresight: "myopic"
 
 scenario:
   simpl:
-    - ""
+    - "60"
   clusters:
-    # - "45"
     - "20"
   ll:
     - "c1.1"
   opts:
     - ""
   sector_opts:
-    - "1000SEG-T-H-B-I-A-Co2L0.5-EXPORT4"
+    - "1000SEG-T-H-B-I-A-Co2L0.45-EXPORT2"
+    # - "10SEG-T-H-B-I-A-Co2L0.45-EXPORT2"
   planning_horizons:
     - 2030
 
-param_sweep_num_nets: 400
+param_sweep_num_nets: 500
 param_sweep:
+  onwind_cost:
+    carrier: "onwind"
+    attr: "c" # Capital cost
+    range: [0.8, 1.2]
+  offwind-fixed_cost:
+    carrier: "offwindfixed"
+    attr: "c" # Capital cost
+    range: [0.8, 1.2]
+  offwind-float_cost:
+    carrier: "offwindfloat"
+    attr: "c" # Capital cost
+    range: [0.8, 1.2]
+  SMR_cost:
+    carrier: "SMR CC"
+    attr: "c" # Capital cost
+    range: [0.8, 1.2]
+  gas_cost:
+    carrier: "gas"
+    attr: "m" # Marginal cost
+    range: [0.8, 1.2]
+  sequestration_cost:
+    carrier: "co2 stored"
+    attr: "c" # Capital cost: sequestration is modelled as store
+    range: [0.8, 1.2]
+  electrolysis_cost:
+    carrier: "H2 Electrolysis"
+    attr: "c" # Capital cost
+    range: [0.8, 1.2]
+  electrolysis_efficiency:
+    carrier: "H2 Electrolysis"
+    attr: "f" # Efficiency
+    range: [0.935, 1.065] # Given a HHV efficiency of 77%, this corresponds to a range of 72%-82%.
   export_capital_cost:
     carrier: "H2 export"
     attr: "c" # Capital cost
@@ -29,38 +61,6 @@ param_sweep:
     carrier: "H2 export"
     attr: "m" # Marginal cost
     range: [0.8, 1.2]
-  export_efficiency:
-    carrier: "H2 export"
-    attr: "f" # Efficiency
-    range: [0.8, 1.2]
-  electrolysis_cost:
-    carrier: "H2 Electrolysis"
-    attr: "c" # Capital cost
-    range: [0.7, 1.3]
-  SMR_cost:
-    carrier: "SMR CC"
-    attr: "c" # Capital cost
-    range: [0.7, 1.3]
-  gas_cost:
-    carrier: "gas"
-    attr: "m" # Marginal cost
-    range: [0.8, 1.4]
-  sequestration_cost:
-    carrier: "co2 stored"
-    attr: "c" # Capital cost: sequestration is modelled as store
-    range: [0.8, 1.2]
-  onwind_cost:
-    carrier: "onwind"
-    attr: "c" # Capital cost
-    range: [0.8, 1.2]
-  offwind-ac_cost:
-    carrier: "offwindfixed"
-    attr: "c" # Capital cost
-    range: [0.7, 1.3]
-  offwind-float_cost:
-    carrier: "offwindfloat"
-    attr: "c" # Capital cost
-    range: [0.7, 1.3]
 
 
 countries: ["NO", "SE", "FI", "NL", "DE", "DK", "GB"]
@@ -85,6 +85,7 @@ electricity:
     year: 2022
 
 atlite:
+  nprocesses: 8
   cutouts:
     base:
       module: era5
@@ -96,12 +97,13 @@ sector:
   H2_network: false
   co2_spatial: false
   co2_sequestration_lifetime: .inf
+  co2_sequestration_cost: 28.7
   co2network: false
   SMR: false
   SMR_cc: true
   methanation: false
   dac: false
-  ammonia: true
+  ammonia: "regional"
   fischer_tropsch: false
   biomass_spatial: true
   conventional_generation:
@@ -125,6 +127,15 @@ costs:
     # Using Eurostat HICP rates we find that inflation 2015-2021 was 8.82%,
     # Making for a cost of 4160 EUR_2015
     offwind-float: 4160
+    # From NVE, we get a bottom-fixed offshore wind investment cost of
+    # 25500 NOK / kWel in 2021 NOK. Similar to the above, this is 2509
+    # EUR_2021, and thus 2305 EUR_2015.
+    offwind: 2305
+    # From NVE, we get an onshore wind investment cost of 12340 NOK / kWel.
+    # With the same calculation as above, this is 1214 EUR_2021,
+    # equivalent to 1116 EUR_2015
+    onwind: 1116
+    electrolysis: 337
 
 clustering:
   simplify_network:
@@ -150,9 +161,9 @@ wind_bias_correction:
 plotting:
   map:
     # Whole region:
-    boundaries: [0, 25, 45, 71]
+    # boundaries: [0, 25, 45, 71]
     # Just Norway:
-    # boundaries: [0, 20, 57, 71]
+    boundaries: [0, 26, 57, 72]
   eu_node_location:
     x: 0.
     y: 60.
