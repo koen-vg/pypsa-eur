@@ -6,12 +6,14 @@ name: pypsa-eur
 channels:
 - conda-forge
 - bioconda
+- gurobi
 dependencies:
 - python>=3.8
 - pip
 
+- gurobi
+
 - atlite>=0.2.9
-- pypsa>=0.26.1
 - linopy
 - dask
 
@@ -64,3 +66,4 @@ dependencies:
   - snakemake-executor-plugin-slurm
   - snakemake-executor-plugin-cluster-generic
   - highspy
+  - git+https://github.com/koen-vg/PyPSA.git@8452bfac#egg=pypsa
