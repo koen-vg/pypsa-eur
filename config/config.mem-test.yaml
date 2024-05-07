@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: : 2017-2024 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+run:
+  name: "mem-test"
+  disable_progressbar: true
+  shared_resources: false
+  shared_cutouts: true
+
+enable:
+  retrieve_cutout: false
+
+foresight: myopic
+
+scenario:
+  ll:
+  - v1.5
+  clusters:
+  - 50
+  sector_opts:
+  - ""
+  - "aggBuildYear"
+  planning_horizons:
+  - 2020
+  - 2025
+  - 2030
+  - 2035
+  - 2040
+  - 2045
+  - 2050
+
+countries: ["DE", "NL", "BE"]
+
+clustering:
+  temporal:
+    resolution_sector: "336H"
+  build_year_aggregation: false
+
+sector:
+  central_heat_vent: true
+  transmission_efficiency_enabled: false
+
+electricity:
+  extendable_carriers:
+    Generator: [OCGT, solar, onwind, offwind-ac, offwind-dc]
+    StorageUnit: [battery]
+    Store: [H2]
+    Link: [H2 pipeline]
+
+  renewable_carriers: [solar, onwind, offwind-ac, offwind-dc]
+
+  estimate_renewable_capacities:
+    enable: false
+
+renewable:
+  solar:
+    cutout: "europe-2013-era5"
+
+industry:
+  St_primary_fraction:
+    2030: 0.6
+    2040: 0.5
+    2050: 0.4
+
+solving:
+  solver:
+    name: "gurobi"
+  mem: 4000
