@@ -1309,6 +1309,8 @@ if __name__ == "__main__":
         )
 
         if snakemake.params.get("build_year_aggregation", False):
+            # First delete the model to save memory
+            del n.model
             disaggregate_build_years(n, indices, snakemake.wildcards.planning_horizons)
 
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
