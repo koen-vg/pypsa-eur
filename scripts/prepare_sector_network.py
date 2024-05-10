@@ -1746,8 +1746,6 @@ def add_ice_cars(n, nodes, p_set, ice_share, temperature):
 
     p_nom = ice_share * p_set.div(efficiency).max()
 
-    profile = p_set.div(efficiency) / p_set.div(efficiency).max()
-
     n.madd(
         "Link",
         nodes,
@@ -1760,8 +1758,6 @@ def add_ice_cars(n, nodes, p_set, ice_share, temperature):
         efficiency2=costs.at["oil", "CO2 intensity"],
         p_nom_extendable=False,
         p_nom=p_nom,
-        p_min_pu=profile,
-        p_max_pu=profile,
         lifetime=1,
     )
 
