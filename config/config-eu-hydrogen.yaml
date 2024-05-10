@@ -173,31 +173,6 @@ energy:
   energy_totals_year: 2019
 
 sector:
-  # Default transport shares:
-  land_transport_fuel_cell_share:
-    2020: 0
-    2025: 0
-    2030: 0
-    2035: 0
-    2040: 0
-    2045: 0
-    2050: 0
-  land_transport_electric_share:
-    2020: 0
-    2025: 0.15
-    2030: 0.3
-    2035: 0.45
-    2040: 0.7
-    2045: 0.85
-    2050: 1
-  land_transport_ice_share:
-    2020: 1
-    2025: 0.85
-    2030: 0.7
-    2035: 0.55
-    2040: 0.3
-    2045: 0.15
-    2050: 0
   # Default agriculture fuel shares:
   agriculture_machinery_electric_share: 0
   agriculture_machinery_oil_share: 1
@@ -231,6 +206,8 @@ sector:
     2050: 0
   # Default aviation demand:
   aviation_demand_factor: 1.
+  # Don't use bioelectric fuels
+  electrobiofuels: false
   # Default demand for high value petro-chemicals (HVC):
   HVC_demand_factor: 1.
   # Do allow heat venting to prevent potential infeasibility
@@ -330,7 +307,7 @@ solving:
 
   solver_options:
     gurobi-default:
-      threads: 4
+      threads: 2
       method: 2 # barrier
       crossover: 0
       BarConvTol: 1.e-3
@@ -338,10 +315,15 @@ solving:
       AggFill: 0
       PreDual: 0
       GURO_PAR_BARDENSETHRESH: 200
-      BarHomogeneous: 0
+      BarHomogeneous: 1
+      # This is actually read by linopy:
+      return_model: false
+
+  model_options:
+    solver_dir: "tmp"
 
   mem_mb: 35000 # Memory in MB; current config takes ~30GB with 1500 segments
-  runtime: "100m" # Solving typically takes less than an hour; add some slack
+  runtime: 100 # In minutes; solving typically takes less than an hour; add some slack
 
 compression:
   enable: false
