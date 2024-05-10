@@ -167,6 +167,10 @@ rule near_opt_myopic:
         near_opt=config_provider("near_opt"),
         planning_horizons=config_provider("scenario", "planning_horizons"),
         sector=config_provider("sector"),
+        build_year_aggregation=lambda w: (
+            config_provider("clustering", "build_year_aggregation")(w)
+            and (config_provider("foresight")(w) == "myopic")
+        ),
         # Not supported yet:
         # custom_extra_functionality=input_custom_extra_functionality,
     input:

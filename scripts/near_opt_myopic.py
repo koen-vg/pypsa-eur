@@ -5,15 +5,21 @@ import os
 import numpy as np
 import pandas as pd
 import pypsa
+from linopy import LinearExpression, QuadraticExpression, merge
+from pypsa.descriptors import nominal_attrs
+
 from _benchmark import memory_logger
 from _helpers import (
     configure_logging,
     set_scenario_config,
     update_config_from_wildcards,
 )
-from linopy import LinearExpression, QuadraticExpression, merge
-from pypsa.descriptors import nominal_attrs
-from solve_network import extra_functionality, prepare_network
+from solve_network import (
+    aggregate_build_years,
+    disaggregate_build_years,
+    extra_functionality,
+    prepare_network,
+)
 
 logger = logging.getLogger(__name__)
 pypsa.pf.logger.setLevel(logging.WARNING)
@@ -264,6 +270,7 @@ if __name__ == "__main__":
 
     # Base objective slack on optimal network.
     n_opt = pypsa.Network(snakemake.input.network_opt)
+    aggregate_build_years(n_opt)
     obj_base = n_opt.statistics.capex().sum() + n_opt.statistics.opex().sum()
     del n_opt
 
@@ -273,6 +280,9 @@ if __name__ == "__main__":
     with memory_logger(
         filename=getattr(snakemake.log, "memory", None), interval=30.0
     ) as mem:
+        if snakemake.params.get("build_year_aggregation", False):
+            indices = aggregate_build_years(n)
+
         n = near_opt(
             n,
             snakemake.config,
@@ -282,6 +292,9 @@ if __name__ == "__main__":
             obj_base,
             float(snakemake.wildcards.slack),
         )
+
+        if snakemake.params.get("build_year_aggregation", False):
+            disaggregate_build_years(n, indices, snakemake.wildcards.planning_horizons)
 
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
 
