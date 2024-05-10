@@ -196,6 +196,8 @@ Upcoming Release
 
 * Add documentation section for how to contribute documentation
 
+* Add support for floating offshore wind.
+
 
 PyPSA-Eur 0.10.0 (19th February 2024)
 =====================================
