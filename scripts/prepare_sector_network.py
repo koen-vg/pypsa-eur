@@ -455,7 +455,6 @@ def update_wind_solar_costs(n, costs):
             continue
         profile = snakemake.input["profile_offwind-" + connection]
         with xr.open_dataset(profile) as ds:
-
             # if-statement for compatibility with old profiles
             if "year" in ds.indexes:
                 ds = ds.sel(year=ds.year.min(), drop=True)
@@ -1550,7 +1549,6 @@ def add_EVs(
     number_cars,
     temperature,
 ):
-
     n.add("Carrier", "Li ion")
 
     n.madd(
@@ -1656,7 +1654,6 @@ def add_EVs(
 
 
 def add_electrobiofuels(n, nodes):
-
     print("Adding electrobiofuels")
     efuel_scale_factor = costs.at["BtL", "C stored"]
     n.madd(
@@ -1688,7 +1685,6 @@ def add_electrobiofuels(n, nodes):
 
 
 def add_fuel_cell_cars(n, nodes, p_set, fuel_cell_share, temperature):
-
     # https://h2-mobility.de/wp-content/uploads/2021/02/H2M_Flottenpapier_English_20180822.pdf
     # assume in average 1kg_H2 per 100 km -> 1kg_H2 = 33 kWh_H2 (LHV)
     # 1 MWh_H2 = 30.003 100km
@@ -1728,7 +1724,6 @@ def add_fuel_cell_cars(n, nodes, p_set, fuel_cell_share, temperature):
 
 
 def add_ice_cars(n, nodes, p_set, ice_share, temperature):
-
     add_carrier_buses(n, "oil")
 
     # average consumption 7 liter per 100 km
@@ -1772,7 +1767,6 @@ def add_ice_cars(n, nodes, p_set, ice_share, temperature):
 
 
 def adjust_endogenous_transport(n):
-
     logger.info("Assume endogenous land transport")
     carrier = [
         "land transport EV",
@@ -3825,7 +3819,6 @@ def lossy_bidirectional_links(n, carrier, efficiencies={}):
 
 
 def adjust_transport_temporal_agg(n):
-
     engine_types = {
         "fuel_cell": "land transport fuel cell",
         "electric": "land transport EV",
@@ -3835,7 +3828,6 @@ def adjust_transport_temporal_agg(n):
     p_set = n.loads_t.p_set.loc[:, n.loads.carrier == "land transport demand"]
 
     for engine, carrier in engine_types.items():
-
         links_i = n.links[n.links.carrier == carrier].index
         if links_i.empty:
             continue
