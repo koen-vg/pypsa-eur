@@ -98,6 +98,12 @@ Upcoming Release
 * Added new HVDC transmission projects from `TYNDP 2024 draft projects
   <https://tyndp.entsoe.eu/news/176-pan-european-electricity-transmission-projects-and-33-storage-projects-will-be-assessed-in-tyndp-2024>`__.
 
+
+* fix bug in land transport for temperature correction of ICEs and fuel cell cars
+
+* restructure land transport, demand is now attached to one single node, the
+different car types (ICE, EV, fuel cell) are modelled as links
+
 * Upgrade to Snakemake v8.5+. This version is the new minimum version required.
   To upgrade an existing environment, run ``conda install -c bioconda
   snakemake-minimal">=8.5"`` and ``pip install snakemake-storage-plugin-http``

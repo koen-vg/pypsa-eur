@@ -24,27 +24,46 @@ logger = logging.getLogger(__name__)
 
 
 def build_nodal_transport_data(fn, pop_layout, year):
+    # get numbers of car and fuel efficiency per country
     transport_data = pd.read_csv(fn, index_col=[0, 1])
     transport_data = transport_data.xs(min(2015, year), level="year")
 
+    # TODO check what is going wrong in LU
+    # transport_data.loc['LU', 'average fuel efficiency heavy duty'] = transport_data.loc['SI', 'average fuel efficiency heavy duty']
+
+    # break number of cars down to nodal level based on population density
     nodal_transport_data = transport_data.loc[pop_layout.ct].fillna(0.0)
+
     nodal_transport_data.index = pop_layout.index
-    nodal_transport_data["number cars"] = (
-        pop_layout["fraction"] * nodal_transport_data["number cars"]
+    car_cols = [
+        "Number Passenger cars",
+        "Number Powered 2-wheelers",
+        "Number Light duty vehicles",
+        "Number Motor coaches, buses and trolley buses",
+        "Number Heavy duty vehicles",
+    ]
+
+    nodal_transport_data[car_cols] = nodal_transport_data[car_cols].mul(
+        pop_layout["fraction"], axis=0
     )
-    nodal_transport_data.loc[
-        nodal_transport_data["average fuel efficiency"] == 0.0,
-        "average fuel efficiency",
-    ] = transport_data["average fuel efficiency"].mean()
+    # fill missing fuel efficiency [kWh/km] with average data
+    eff_cols = [
+        "average fuel efficiency passenger car",
+        "average fuel efficiency heavy duty",
+    ]
+    for col in eff_cols:
+        nodal_transport_data.loc[
+            nodal_transport_data[col] == 0.0,
+            col,
+        ] = transport_data[col].mean()
 
     return nodal_transport_data
 
 
-def build_transport_demand(traffic_fn, airtemp_fn, nodes, nodal_transport_data):
-    ## Get overall demand curve for all vehicles
-
+def get_shape(traffic_fn):
     traffic = pd.read_csv(traffic_fn, skiprows=2, usecols=["count"]).squeeze("columns")
 
+    # create annual profile take account time zone + summer time
     transport_shape = generate_periodic_profiles(
         dt_index=snapshots,
         nodes=nodes,
@@ -52,14 +71,18 @@ def build_transport_demand(traffic_fn, airtemp_fn, nodes, nodal_transport_data):
     )
     transport_shape = transport_shape / transport_shape.sum()
 
-    # electric motors are more efficient, so alter transport demand
+    return transport_shape
 
-    plug_to_wheels_eta = options["bev_plug_to_wheel_efficiency"]
-    battery_to_wheels_eta = plug_to_wheels_eta * options["bev_charge_efficiency"]
 
-    efficiency_gain = (
-        nodal_transport_data["average fuel efficiency"] / battery_to_wheels_eta
-    )
+def build_transport_demand(
+    traffic_fn_Pkw, traffic_fn_Lkw, airtemp_fn, nodes, nodal_transport_data
+):
+    """
+    Returns transport demand per bus in unit kinetic energy.
+    """
+    transport_shape_light = get_shape(traffic_fn_Pkw)
+
+    transport_shape_heavy = get_shape(traffic_fn_Lkw)
 
     # get heating demand for correction to demand time series
     temperature = xr.open_dataarray(airtemp_fn).to_pandas()
@@ -73,29 +96,68 @@ def build_transport_demand(traffic_fn, airtemp_fn, nodes, nodal_transport_data):
         options["ICE_upper_degree_factor"],
     )
 
-    dd_EV = transport_degree_factor(
-        temperature,
-        options["transport_heating_deadband_lower"],
-        options["transport_heating_deadband_upper"],
-        options["EV_lower_degree_factor"],
-        options["EV_upper_degree_factor"],
-    )
-
     # divide out the heating/cooling demand from ICE totals
-    # and multiply back in the heating/cooling demand for EVs
-    ice_correction = (transport_shape * (1 + dd_ICE)).sum() / transport_shape.sum()
+    ice_correction_light = (
+        transport_shape_light * (1 + dd_ICE)
+    ).sum() / transport_shape_light.sum()
+    ice_correction_heavy = (
+        transport_shape_light * (1 + dd_ICE)
+    ).sum() / transport_shape_heavy.sum()
 
-    energy_totals_transport = (
-        pop_weighted_energy_totals["total road"]
-        + pop_weighted_energy_totals["total rail"]
+    light_duty_cols = [
+        "total two-wheel",
+        "total passenger cars",
+        "total light duty road freight",
+    ]
+
+    heavy_duty_cols = [
+        "total other road passenger",  # motor coaches, buses, trolley buses
+        "total heavy duty road freight",
+    ]
+
+    light_duty = pop_weighted_energy_totals[light_duty_cols].sum(axis=1)
+
+    heavy_duty = pop_weighted_energy_totals[heavy_duty_cols].sum(axis=1)
+
+    rail = (
+        pop_weighted_energy_totals["total rail"]
         - pop_weighted_energy_totals["electricity rail"]
     )
 
-    return (
-        (transport_shape.multiply(energy_totals_transport) * 1e6 * nyears)
-        .divide(efficiency_gain * ice_correction)
-        .multiply(1 + dd_EV)
+    def get_demand(
+        transport_shape,
+        energy_totals_transport,
+        nyears,
+        fuel_efficiency,
+        ice_correction,
+        name,
+    ):
+
+        demand = (
+            transport_shape.multiply(energy_totals_transport) * 1e6 * nyears
+        ).divide(fuel_efficiency * ice_correction)
+
+        return pd.concat([demand], keys=[name], axis=1)
+
+    demand_light = get_demand(
+        transport_shape_light,
+        light_duty,
+        nyears,
+        # convert 1 kWh/km = 0.1 MWh/ 100 km
+        0.1 * nodal_transport_data["average fuel efficiency passenger car"],
+        ice_correction_light,
+        name="light",
     )
+    demand_heavy = get_demand(
+        transport_shape_heavy,
+        (heavy_duty + rail),
+        nyears,
+        0.1 * nodal_transport_data["average fuel efficiency heavy duty"],
+        ice_correction_heavy,
+        name="heavy",
+    )
+
+    return pd.concat([demand_light, demand_heavy], axis=1)
 
 
 def transport_degree_factor(
@@ -131,11 +193,14 @@ def bev_availability_profile(fn, snapshots, nodes, options):
     """
     Derive plugged-in availability for passenger electric vehicles.
     """
+    # car count in typical week
     traffic = pd.read_csv(fn, skiprows=2, usecols=["count"]).squeeze("columns")
-
+    # maximum share plugged-in availability for passenger electric vehicles
     avail_max = options["bev_avail_max"]
+    # average share plugged-in availability for passenger electric vehicles
     avail_mean = options["bev_avail_mean"]
 
+    # linear scaling, highest when traffic is lowest, decreases if traffic increases
     avail = avail_max - (avail_max - avail_mean) * (traffic - traffic.min()) / (
         traffic.mean() - traffic.min()
     )
@@ -156,6 +221,8 @@ def bev_availability_profile(fn, snapshots, nodes, options):
 def bev_dsm_profile(snapshots, nodes, options):
     dsm_week = np.zeros((24 * 7,))
 
+    # assuming that at a certain time ("bev_dsm_restriction_time") EVs have to
+    # be charged to a minimum value (defined in bev_dsm_restriction_value)
     dsm_week[(np.arange(0, 7, 1) * 24 + options["bev_dsm_restriction_time"])] = options[
         "bev_dsm_restriction_value"
     ]
@@ -201,7 +268,8 @@ if __name__ == "__main__":
     )
 
     transport_demand = build_transport_demand(
-        snakemake.input.traffic_data_KFZ,
+        snakemake.input.traffic_data_Pkw,
+        snakemake.input.traffic_data_Lkw,
         snakemake.input.temp_air_total,
         nodes,
         nodal_transport_data,

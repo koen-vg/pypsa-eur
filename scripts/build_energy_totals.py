@@ -279,6 +279,7 @@ def idees_per_country(ct, base_dir):
 
     df = pd.read_excel(fn_transport, "TrRoad_ene", index_col=0)
 
+    # Energy consumption by fuel (ktoe)
     ct_totals["total road"] = df.loc["by fuel (EUROSTAT DATA)"]
 
     ct_totals["electricity road"] = df.loc["Electricity"]
@@ -306,8 +307,12 @@ def idees_per_country(ct, base_dir):
     row = "Heavy duty vehicles (Diesel oil incl. biofuels)"
     ct_totals["total heavy duty road freight"] = df.loc[row]
 
+    # vehicle efficiency (kgoe/100km)
     assert df.index[61] == "Passenger cars"
     ct_totals["passenger car efficiency"] = df.iloc[61]
+
+    assert df.index[81] == "Heavy duty vehicles"
+    ct_totals["heavy duty efficiency"] = df.iloc[81]
 
     df = pd.read_excel(fn_transport, "TrRail_ene", index_col=0)
 
@@ -367,8 +372,24 @@ def idees_per_country(ct, base_dir):
 
     df = pd.read_excel(fn_transport, "TrRoad_act", index_col=0)
 
+    # total number of light duty vehicles
     assert df.index[85] == "Passenger cars"
-    ct_totals["passenger cars"] = df.iloc[85]
+
+    ct_totals["Number Passenger cars"] = df.iloc[85]
+
+    assert df.index[84] == "Powered 2-wheelers"
+    ct_totals["Number Powered 2-wheelers"] = df.iloc[84]
+
+    assert df.index[99] == "Light duty vehicles"
+    ct_totals["Number Light duty vehicles"] = df.iloc[99]
+
+    # total number of heavy duty vehicles
+
+    assert df.index[92] == "Motor coaches, buses and trolley buses"
+    ct_totals["Number Motor coaches, buses and trolley buses"] = df.iloc[92]
+
+    assert df.index[105] == "Heavy duty vehicles"
+    ct_totals["Number Heavy duty vehicles"] = df.iloc[105]
 
     return pd.DataFrame(ct_totals)
 
@@ -396,11 +417,12 @@ def build_idees(countries):
     )
 
     # convert ktoe to TWh
-    exclude = totals.columns.str.fullmatch("passenger cars")
+    exclude = totals.columns.str.contains("Number")
     totals.loc[:, ~exclude] *= 11.63 / 1e3
 
     # convert TWh/100km to kWh/km
     totals.loc[:, "passenger car efficiency"] *= 10
+    totals.loc[:, "heavy duty efficiency"] *= 10
 
     return totals
 
@@ -410,7 +432,15 @@ def build_energy_totals(countries, eurostat, swiss, idees):
     eurostat_countries = eurostat.index.levels[0]
     eurostat_years = eurostat.index.levels[1]
 
-    to_drop = ["passenger cars", "passenger car efficiency"]
+    to_drop = [
+        "Number Passenger cars",
+        "Number Powered 2-wheelers",
+        "Number Light duty vehicles",
+        "Number Motor coaches, buses and trolley buses",
+        "Number Heavy duty vehicles",
+        "passenger car efficiency",
+        "heavy duty efficiency",
+    ]
     new_index = pd.MultiIndex.from_product(
         [countries, eurostat_years], names=["country", "year"]
     )
@@ -725,61 +755,85 @@ def build_co2_totals(countries, eea_co2, eurostat_co2):
 
 
 def build_transport_data(countries, population, idees):
-    # first collect number of cars
-
-    transport_data = pd.DataFrame(idees["passenger cars"])
-
     countries_without_ch = set(countries) - {"CH"}
-    new_index = pd.MultiIndex.from_product(
-        [countries_without_ch, transport_data.index.levels[1]],
+    index = pd.MultiIndex.from_product(
+        [countries_without_ch, idees.index.levels[1]],
         names=["country", "year"],
     )
+    transport_data = pd.DataFrame(index=index)
 
-    transport_data = transport_data.reindex(index=new_index)
+    # collect number of cars
+    car_cols = [
+        "Number Passenger cars",
+        "Number Powered 2-wheelers",
+        "Number Light duty vehicles",
+        "Number Motor coaches, buses and trolley buses",
+        "Number Heavy duty vehicles",
+    ]
 
-    # https://www.bfs.admin.ch/bfs/en/home/statistics/mobility-transport/transport-infrastructure-vehicles/vehicles/road-vehicles-stock-level-motorisation.html
+    transport_data[car_cols] = idees[car_cols]
+
     if "CH" in countries:
         fn = snakemake.input.swiss_transport
-        swiss_cars = pd.read_csv(fn, index_col=0).loc[2000:2015, ["passenger cars"]]
+        swiss_cars = pd.read_csv(fn, index_col=0).loc[
+            2000:2015, ["passenger cars", "passenger vehicles", "goods vehicles"]
+        ]
 
         swiss_cars.index = pd.MultiIndex.from_product(
             [["CH"], swiss_cars.index], names=["country", "year"]
         )
 
+        swiss_cars.rename(
+            columns={
+                "passenger cars": "Number Passenger cars",
+                "passenger vehicles": "Number Motor coaches, buses and trolley buses",
+                "goods vehicles": "Number Heavy duty vehicles",
+            },
+            inplace=True,
+        )
+
         transport_data = pd.concat([transport_data, swiss_cars]).sort_index()
 
-    transport_data.rename(columns={"passenger cars": "number cars"}, inplace=True)
+    for col in transport_data.columns:
+        missing = transport_data.index[transport_data[col].isna()]
+        if not missing.empty:
+            logger.info(
+                f"Missing data on cars from:\n{list(missing)}\nFilling gaps with averaged data."
+            )
 
-    missing = transport_data.index[transport_data["number cars"].isna()]
-    if not missing.empty:
-        logger.info(
-            f"Missing data on cars from:\n{list(missing)}\nFilling gaps with averaged data."
-        )
+            cars_pp = transport_data[col] / population
 
-        cars_pp = transport_data["number cars"] / population
+            fill_values = {
+                year: cars_pp.mean() * population
+                for year in transport_data.index.levels[1]
+            }
+            fill_values = pd.DataFrame(fill_values).stack()
+            fill_values = pd.DataFrame(fill_values, columns=[col])
+            fill_values.index.names = ["country", "year"]
+            fill_values = fill_values.reindex(transport_data.index)
 
-        fill_values = {
-            year: cars_pp.mean() * population for year in transport_data.index.levels[1]
-        }
-        fill_values = pd.DataFrame(fill_values).stack()
-        fill_values = pd.DataFrame(fill_values, columns=["number cars"])
-        fill_values.index.names = ["country", "year"]
-        fill_values = fill_values.reindex(transport_data.index)
-
-        transport_data = transport_data.combine_first(fill_values)
+            transport_data = transport_data.combine_first(fill_values)
 
     # collect average fuel efficiency in kWh/km
+    for vehicle_type in ["passenger car", "heavy duty"]:
+        transport_data[f"average fuel efficiency {vehicle_type}"] = idees[
+            f"{vehicle_type} efficiency"
+        ]
 
-    transport_data["average fuel efficiency"] = idees["passenger car efficiency"]
+        missing = transport_data.index[
+            transport_data[f"average fuel efficiency {vehicle_type}"].isna()
+        ]
+        if not missing.empty:
+            logger.info(
+                f"Missing data on fuel efficiency from:\n{list(missing)}\nFilling gapswith averaged data."
+            )
 
-    missing = transport_data.index[transport_data["average fuel efficiency"].isna()]
-    if not missing.empty:
-        logger.info(
-            f"Missing data on fuel efficiency from:\n{list(missing)}\nFilling gaps with averaged data."
-        )
-
-        fill_values = transport_data["average fuel efficiency"].mean()
-        transport_data.loc[missing, "average fuel efficiency"] = fill_values
+            fill_values = transport_data[
+                f"average fuel efficiency {vehicle_type}"
+            ].mean()
+            transport_data.loc[missing, f"average fuel efficiency {vehicle_type}"] = (
+                fill_values
+            )
 
     return transport_data
 
