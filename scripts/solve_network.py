@@ -879,7 +879,7 @@ def add_endogenous_transport_constraints(n, snapshots):
         f = (
             n.links.loc[ev_i, "p_nom"]
             .rename(n.links.bus0)
-            .div(n.stores.loc[bev_dsm_i, "e_nom"].rename(n.links.bus1))
+            .div(n.stores.loc[bev_dsm_i, "e_nom"].rename(n.stores.bus))
         )
 
         store_e_nom = n.model.variables.Store_e_nom
