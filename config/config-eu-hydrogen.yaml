@@ -212,6 +212,8 @@ sector:
   HVC_demand_factor: 1.
   # Do allow heat venting to prevent potential infeasibility
   central_heat_vent: true
+  # Model central heating everywhere to allow for build year aggregation
+  central_heat_everywhere: true
   # Allow both grey and blue hydrogen
   SMR: true
   SMR_cc: true
@@ -239,7 +241,7 @@ sector:
   biomass_spatial: false
   biomass_transport: false
   # Don't model efficiency losses, and don't model gas & elec distribution grids
-  transmission_efficiency: {}
+  transmission_efficiency_enabled: false
   electricity_distribution_grid: false
   gas_distribution_grid: false
   # Allow expansion of gas generations, nuclear
