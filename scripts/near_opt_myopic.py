@@ -217,13 +217,31 @@ def near_opt(
     )
 
     if status == "ok":
-        print("Solved successfully")
+        logger.info("Solved successfully")
+        n.meta["near_opt_status"] = "success"
         return n
-    if "infeasible" in condition:
-        if cf_solving.get("print_infeasibilities", True):
-            labels = n.model.compute_infeasibilities()
-            logger.info(f"Labels:\n{labels}")
-            n.model.print_infeasibilities()
+    elif "infeasible" in condition:
+        # First, try to solve to optimality instead, in case the model
+        # was infeasible because of the objective bound.
+        logger.warning("Cost bound too tight! Solved to cost-optimality instead.")
+        del model_kwargs["transmission_losses"]
+        del model_kwargs["linearized_unit_commitment"]
+        kwargs["model_kwargs"] = model_kwargs
+        status, condition = n.optimize(**kwargs)
+
+        if status == "ok":
+            logger.info("Cost-optimisation successful")
+            n.meta["near_opt_status"] = "too_expensive"
+            n.meta["opt_system_cost"] = (
+                n.statistics.installed_capex().sum() + n.objective
+            )
+            return n
+
+        elif "infeasible" in condition:
+            if cf_solving.get("print_infeasibilities", True):
+                labels = n.model.compute_infeasibilities()
+                logger.info(f"Labels:\n{labels}")
+                n.model.print_infeasibilities()
 
     raise RuntimeError(
         f"Solve with condition status {status} and condition {condition}"
