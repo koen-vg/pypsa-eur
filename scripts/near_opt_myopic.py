@@ -274,6 +274,8 @@ if __name__ == "__main__":
     np.random.seed(solve_opts.get("seed", 123))
 
     n = pypsa.Network(snakemake.input.network)
+    planning_horizons = snakemake.params.planning_horizons
+    current_horizon = snakemake.wildcards.planning_horizons
 
     n = prepare_network(
         n,
@@ -282,8 +284,8 @@ if __name__ == "__main__":
         config=snakemake.config,
         sector=snakemake.params.sector,
         foresight="myopic",
-        planning_horizons=snakemake.params.planning_horizons,
-        current_horizon=snakemake.wildcards.planning_horizons,
+        planning_horizons=planning_horizons,
+        current_horizon=current_horizon,
     )
 
     # Base objective slack on optimal network.
@@ -291,6 +293,21 @@ if __name__ == "__main__":
     aggregate_build_years(n_opt)
     obj_base = n_opt.statistics.capex().sum() + n_opt.statistics.opex().sum()
     del n_opt
+
+    # Calculate slack. We gradually increase slack from half the
+    # nominal slack at the first planning horizon to the full slack at
+    # the last planning horizon.
+    slack_nom = float(snakemake.wildcards.slack)
+    slack_initial_fraction = snakemake.params.near_opt.get(
+        "slack_initial_fraction", 1.0
+    )
+    planning_horizon_frac = (int(current_horizon) - min(planning_horizons)) / (
+        max(planning_horizons) - min(planning_horizons)
+    )
+    slack = slack_nom * (
+        slack_initial_fraction + (1 - slack_initial_fraction) * planning_horizon_frac
+    )
+    logger.info(f"Slack for horizon {current_horizon}: {slack}")
 
     # NB: We _don't_ support custom extra functionality in this script!
     # n.custom_extra_functionality = snakemake.params.custom_extra_functionality
@@ -308,7 +325,7 @@ if __name__ == "__main__":
             snakemake.params.near_opt,
             snakemake.wildcards.sense,
             obj_base,
-            float(snakemake.wildcards.slack),
+            slack,
         )
 
         if snakemake.params.get("build_year_aggregation", False):

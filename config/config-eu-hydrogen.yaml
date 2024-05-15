@@ -62,6 +62,7 @@ near_opt:
       Link:
         p:
           "H2 Electrolysis": 1
+  slack_initial_fraction: 0.2
 
 # Use full set of countries (default)
 # countries: ["AL", "AT", "BA", "BE", "BG", "CH", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR", "HR", "HU", "IE", "IT", "LT", "LU", "LV", "ME", "MK", "NL", "NO", "PL", "PT", "RO", "RS", "SE", "SI", "SK"]
