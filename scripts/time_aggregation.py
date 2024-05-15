@@ -101,8 +101,7 @@ if __name__ == "__main__":
 
         weightings = agg.index.get_level_values("Segment Duration")
         offsets = np.insert(np.cumsum(weightings[:-1]), 0, 0)
-        timesteps = [df.index[0] + pd.Timedelta(f"{offset}h") for offset in offsets]
-        snapshot_weightings = n.snapshot_weightings.loc[timesteps].mul(
+        snapshot_weightings = n.snapshot_weightings.loc[n.snapshots[offsets]].mul(
             weightings, axis=0
         )
 
