@@ -994,14 +994,6 @@ strategies = dict(
             else s.squeeze()
         )
     ),
-    #
-    # The remaining variables are destructively aggregated.
-    p_nom_min="sum",
-    p_nom_extendable=lambda x: x.any(),
-    e_nom="sum",
-    e_nom_min="sum",
-    e_nom_max="sum",
-    e_nom_extendable=lambda x: x.any(),
     # Take mean efficiency, then disaggregate. NB: should
     # really be weighted by capacity.
     efficiency="mean",
@@ -1010,6 +1002,12 @@ strategies = dict(
     # efficiency4 1.0, other NaN. (mean ignores NaN values).
     efficiency3="mean",
     efficiency4="mean",
+    p_nom_min="sum",
+    p_nom_extendable=lambda x: x.any(),
+    e_nom="sum",
+    e_nom_min="sum",
+    e_nom_max="sum",
+    e_nom_extendable=lambda x: x.any(),
     # length_original sometimes contains NaN values
     length_original="mean",
     # The following two should really be the same, but
@@ -1042,7 +1040,9 @@ strategies = dict(
 # below (i.e. "p_nom", "e_nom", etc.)
 vars_to_store = [
     "attr_nom",
+    "attr_nom_min",
     "attr_nom_max",
+    "attr_nom_opt",
     "attr_nom_extendable",
     "lifetime",
     "capital_cost",
@@ -1070,25 +1070,16 @@ def aggregate_build_years(n, exclude_carriers):
 
             attr = nominal_attrs[c.name]
 
-            # For components that are non-extendable, set attr_{min,max} = attr
-            non_extendable = c.df[~c.df[f"{attr}_extendable"]].index
-            c.df.loc[non_extendable, f"{attr}_min"] = c.df.loc[non_extendable, attr]
-            c.df.loc[non_extendable, f"{attr}_max"] = c.df.loc[non_extendable, attr]
-
-            # Collect all rows whose index ends with "-YYYY"
-            idx_no_year = pd.Series(c.df.index.copy(), index=c.df.index)
+            # Define the aggregation map
             idx_to_agg = c.df.loc[~c.df.carrier.isin(exclude_carriers)].index
+            idx_no_year = pd.Series(c.df.index.copy(), index=c.df.index)
             idx_no_year.loc[idx_to_agg] = idx_to_agg.str.replace(
                 r"-[0-9]{4}$", "", regex=True
             )
 
-            static_strategies = align_strategies(strategies, c.df.columns, c.name)
-            df_aggregated = c.df.groupby(idx_no_year).agg(static_strategies)
-
-            # Now, for each component (row) in df with name ending in
-            # "-YYYY", store certain aggregated values to be
-            # disaggregated again later. These include 'attr',
-            # 'attr_max' and elements in `vars_to_store`.
+            # For each component (row) in df with name ending in
+            # "-YYYY", store the columns listed in `vars_to_store` to
+            # be disaggregated again later.
             to_store = []
             for v in [s.replace("attr_nom", attr) for s in vars_to_store]:
                 if not v in c.df.columns:
@@ -1101,8 +1092,23 @@ def aggregate_build_years(n, exclude_carriers):
                     col.index = pd.Index(idx_no_year.loc[mask])
                     col.name = f"{v}-{build_year}"
                     to_store.append(col)
+
+            # For components that are non-extendable, set
+            # attr_{min,max} = attr; this is for the aggregated
+            # extendable component to have the correct minimum and
+            # maximum bounds for nominal capacity.
+            non_extendable = c.df[~c.df[f"{attr}_extendable"]].index
+            c.df.loc[non_extendable, f"{attr}_min"] = c.df.loc[non_extendable, attr]
+            c.df.loc[non_extendable, f"{attr}_max"] = c.df.loc[non_extendable, attr]
+
+            # Aggregate
+            static_strategies = align_strategies(strategies, c.df.columns, c.name)
+            df_aggregated = c.df.groupby(idx_no_year).agg(static_strategies)
+
+            # Add the columns that are stored for disaggregation.
             df_aggregated = pd.concat([df_aggregated] + to_store, axis=1)
 
+            # Aggregate time-varying data.
             pnl_aggregated = Dict()
             dynamic_strategies = align_strategies(strategies, c.pnl, c.name)
             for attr, data in c.pnl.items():
@@ -1163,10 +1169,6 @@ def disaggregate_build_years(n, indices, planning_horizon):
                         disagg_df.loc[idx_build_year, "id_no_year"],
                         f"{v}-{build_year}",
                     ].values
-
-            # Set attr_{min,max,opt} to attr
-            for suffix in ["min", "max", "opt"]:
-                disagg_df.loc[:, f"{attr}_{suffix}"] = disagg_df.loc[:, attr]
 
             # Handle the last planning horizon (which was just
             # optimised) specifically: we have to subtract the sum of
