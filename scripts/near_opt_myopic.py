@@ -154,6 +154,8 @@ def near_opt(
     n,
     config,
     solving,
+    build_year_agg,
+    planning_horizon,
     near_opt_config,
     sense,
     obj_base,
@@ -185,6 +187,14 @@ def near_opt(
         model_kwargs = model_kwargs | solving["model_options"]
 
     n.config = config
+
+    build_year_agg_enabled = build_year_agg["enable"] and (
+        config["foresight"] == "myopic"
+    )
+    if build_year_agg_enabled:
+        indices = aggregate_build_years(
+            n, exclude_carriers=build_year_agg["exclude_carriers"]
+        )
 
     weights = {}
     static = near_opt_config["weights"].get("static", {})
@@ -219,6 +229,11 @@ def near_opt(
     if status == "ok":
         logger.info("Solved successfully")
         n.meta["near_opt_status"] = "success"
+
+        if build_year_agg_enabled:
+           del n.model
+           disaggregate_build_years(n, indices, planning_horizon)
+
         return n
     elif "infeasible" in condition:
         # First, try to solve to optimality instead, in case the model
@@ -290,8 +305,11 @@ if __name__ == "__main__":
 
     # Base objective slack on optimal network.
     n_opt = pypsa.Network(snakemake.input.network_opt)
-    if snakemake.params.get("build_year_aggregation", False):
-        aggregate_build_years(n_opt)
+    if snakemake.params.build_year_agg["enable"]:
+        aggregate_build_years(
+            n_opt,
+            exclude_carriers=snakemake.params.build_year_agg["exclude_carriers"]
+        )
     obj_base = n_opt.statistics.capex().sum() + n_opt.statistics.opex().sum()
     del n_opt
 
@@ -316,28 +334,17 @@ if __name__ == "__main__":
     with memory_logger(
         filename=getattr(snakemake.log, "memory", None), interval=30.0
     ) as mem:
-        if snakemake.params.get("build_year_aggregation", False):
-            indices = aggregate_build_years(
-                n,
-                excluded_build_year_agg_carriers=snakemake.params.get(
-                    "excluded_build_year_agg_carriers", []
-                ),
-            )
-
         n = near_opt(
             n,
             snakemake.config,
             snakemake.params.solving,
+            snakemake.params.build_year_agg,
+            current_horizon,
             snakemake.params.near_opt,
             snakemake.wildcards.sense,
             obj_base,
             slack,
         )
-
-        if snakemake.params.get("build_year_aggregation", False):
-            # First delete the model to save memory
-            del n.model
-            disaggregate_build_years(n, indices, snakemake.wildcards.planning_horizons)
 
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
 
