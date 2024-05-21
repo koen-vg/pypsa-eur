@@ -116,13 +116,7 @@ rule solve_sector_network_myopic:
     params:
         solving=config_provider("solving"),
         foresight=config_provider("foresight"),
-        build_year_aggregation=lambda w: (
-            config_provider("clustering", "build_year_aggregation")(w)
-            and (config_provider("foresight")(w) == "myopic")
-        ),
-        excluded_build_year_agg_carriers=config_provider(
-            "clustering", "excluded_build_year_agg_carriers"
-        ),
+        build_year_agg=config_provider("clustering", "build_year_aggregation"),
         planning_horizons=config_provider("scenario", "planning_horizons"),
         sector=config_provider("sector"),
         custom_extra_functionality=input_custom_extra_functionality,

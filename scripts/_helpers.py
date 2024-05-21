@@ -776,7 +776,7 @@ def update_config_from_wildcards(config, w, inplace=True):
             config["sector"]["co2_sequestration_potential"] = seq_limit
 
         if "aggBuildYear" in opts:
-            config["clustering"]["build_year_aggregation"] = True
+            config["clustering"]["build_year_aggregation"]["enable"] = True
 
         _, seq_cost = find_opt(opts, "seqcost")
         if seq_cost is not None:
