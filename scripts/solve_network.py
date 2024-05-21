@@ -1091,7 +1091,6 @@ def disaggregate_build_years(n, indices, planning_horizon):
     for c in n.iterate_components():
         if c.name in indices:
             attr = nominal_attrs[c.name]
-            planning_horizon = snakemake.wildcards.planning_horizons
             old_idx = c.df.index.copy()
 
             # Find the indices of components to be disaggregated
@@ -1152,6 +1151,9 @@ def disaggregate_build_years(n, indices, planning_horizon):
                 .sum(axis=1)
                 .values
             )
+
+            # Also make last year extendable again
+            disagg_df.loc[idx_last_horizon, f"{attr}_extendable"] = True
 
             # Drop auxiliary column keeping track of aggregated component
             disagg_df.drop("id_no_year", axis=1, inplace=True)
