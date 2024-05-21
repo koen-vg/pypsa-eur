@@ -840,51 +840,6 @@ def add_co2_atmosphere_constraint(n, snapshots):
             n.model.add_constraints(lhs <= rhs, name=f"GlobalConstraint-{name}")
 
 
-def extra_functionality(n, snapshots):
-    """
-    Collects supplementary constraints which will be passed to
-    ``pypsa.optimization.optimize``.
-
-    If you want to enforce additional custom constraints, this is a good
-    location to add them. The arguments ``opts`` and
-    ``snakemake.config`` are expected to be attached to the network.
-    """
-    config = n.config
-    constraints = config["solving"].get("constraints", {})
-    if constraints["BAU"] and n.generators.p_nom_extendable.any():
-        add_BAU_constraints(n, config)
-    if constraints["SAFE"] and n.generators.p_nom_extendable.any():
-        add_SAFE_constraints(n, config)
-    if constraints["CCL"] and n.generators.p_nom_extendable.any():
-        add_CCL_constraints(n, config)
-
-    reserve = config["electricity"].get("operational_reserve", {})
-    if reserve.get("activate"):
-        add_operational_reserve_margin(n, snapshots, config)
-
-    if EQ_o := constraints["EQ"]:
-        add_EQ_constraints(n, EQ_o.replace("EQ", ""))
-
-    add_battery_constraints(n)
-    add_lossy_bidirectional_link_constraints(n)
-    add_pipe_retrofit_constraint(n)
-    if n._multi_invest:
-        add_carbon_constraint(n, snapshots)
-        add_carbon_budget_constraint(n, snapshots)
-        add_retrofit_gas_boiler_constraint(n, snapshots)
-    else:
-        add_co2_atmosphere_constraint(n, snapshots)
-
-    if snakemake.params.custom_extra_functionality:
-        source_path = snakemake.params.custom_extra_functionality
-        assert os.path.exists(source_path), f"{source_path} does not exist"
-        sys.path.append(os.path.dirname(source_path))
-        module_name = os.path.splitext(os.path.basename(source_path))[0]
-        module = importlib.import_module(module_name)
-        custom_extra_functionality = getattr(module, module_name)
-        custom_extra_functionality(n, snapshots, snakemake)
-
-
 strategies = dict(
     # The following variables are stored in columns and restored
     # exactly after disaggregation.
@@ -1167,6 +1122,51 @@ def disaggregate_build_years(n, indices, planning_horizon):
                 )
 
     logger.info(f"Disaggregated build years in {time.time() - t:.1f} seconds")
+
+
+def extra_functionality(n, snapshots):
+    """
+    Collects supplementary constraints which will be passed to
+    ``pypsa.optimization.optimize``.
+
+    If you want to enforce additional custom constraints, this is a good
+    location to add them. The arguments ``opts`` and
+    ``snakemake.config`` are expected to be attached to the network.
+    """
+    config = n.config
+    constraints = config["solving"].get("constraints", {})
+    if constraints["BAU"] and n.generators.p_nom_extendable.any():
+        add_BAU_constraints(n, config)
+    if constraints["SAFE"] and n.generators.p_nom_extendable.any():
+        add_SAFE_constraints(n, config)
+    if constraints["CCL"] and n.generators.p_nom_extendable.any():
+        add_CCL_constraints(n, config)
+
+    reserve = config["electricity"].get("operational_reserve", {})
+    if reserve.get("activate"):
+        add_operational_reserve_margin(n, snapshots, config)
+
+    if EQ_o := constraints["EQ"]:
+        add_EQ_constraints(n, EQ_o.replace("EQ", ""))
+
+    add_battery_constraints(n)
+    add_lossy_bidirectional_link_constraints(n)
+    add_pipe_retrofit_constraint(n)
+    if n._multi_invest:
+        add_carbon_constraint(n, snapshots)
+        add_carbon_budget_constraint(n, snapshots)
+        add_retrofit_gas_boiler_constraint(n, snapshots)
+    else:
+        add_co2_atmosphere_constraint(n, snapshots)
+
+    if snakemake.params.custom_extra_functionality:
+        source_path = snakemake.params.custom_extra_functionality
+        assert os.path.exists(source_path), f"{source_path} does not exist"
+        sys.path.append(os.path.dirname(source_path))
+        module_name = os.path.splitext(os.path.basename(source_path))[0]
+        module = importlib.import_module(module_name)
+        custom_extra_functionality = getattr(module, module_name)
+        custom_extra_functionality(n, snapshots, snakemake)
 
 
 def solve_network(n, config, solving, **kwargs):
