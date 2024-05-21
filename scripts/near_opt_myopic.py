@@ -290,7 +290,8 @@ if __name__ == "__main__":
 
     # Base objective slack on optimal network.
     n_opt = pypsa.Network(snakemake.input.network_opt)
-    aggregate_build_years(n_opt)
+    if snakemake.params.get("build_year_aggregation", False):
+        aggregate_build_years(n_opt)
     obj_base = n_opt.statistics.capex().sum() + n_opt.statistics.opex().sum()
     del n_opt
 
@@ -316,7 +317,12 @@ if __name__ == "__main__":
         filename=getattr(snakemake.log, "memory", None), interval=30.0
     ) as mem:
         if snakemake.params.get("build_year_aggregation", False):
-            indices = aggregate_build_years(n)
+            indices = aggregate_build_years(
+                n,
+                excluded_build_year_agg_carriers=snakemake.params.get(
+                    "excluded_build_year_agg_carriers", []
+                ),
+            )
 
         n = near_opt(
             n,
