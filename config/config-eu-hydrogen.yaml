@@ -101,6 +101,14 @@ countries:
 clustering:
   temporal:
     resolution_sector: "1500seg"
+  build_year_aggregation:
+    enable: true
+    # Exclude electrolysis since its efficiency changes significantly over time.
+    exclude_carriers:
+      - "H2 Electrolysis"
+      - "solid biomass for industry CC"
+      - "gas for industry CC"
+      - "process emissions CC"
 
 
 co2_budget:
