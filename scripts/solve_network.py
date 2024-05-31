@@ -1252,6 +1252,16 @@ def solve_network(n, config, solving, build_year_agg, **kwargs):
     if "model_options" in solving:
         kwargs["model_kwargs"] = solving["model_options"]
 
+        if (
+            "solver_dir" in kwargs["model_kwargs"]
+            and "$" in kwargs["model_kwargs"]["solver_dir"]
+        ):
+            # Resolve env var as path
+            kwargs["model_kwargs"]["solver_dir"] = os.path.expandvars(
+                kwargs["model_kwargs"]["solver_dir"]
+            )
+            logger.info(f"Set solver_dir to {kwargs['model_kwargs']['solver_dir']}")
+
     rolling_horizon = cf_solving.pop("rolling_horizon", False)
     skip_iterations = cf_solving.pop("skip_iterations", False)
     if not n.lines.s_nom_extendable.any():

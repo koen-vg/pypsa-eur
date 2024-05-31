@@ -186,6 +186,11 @@ def near_opt(
     if "model_options" in solving:
         model_kwargs = model_kwargs | solving["model_options"]
 
+        if "solver_dir" in model_kwargs and "$" in model_kwargs["solver_dir"]:
+            # Resolve env var as path
+            model_kwargs["solver_dir"] = os.path.expandvars(model_kwargs["solver_dir"])
+            logger.info(f"Set solver_dir to {model_kwargs['solver_dir']}")
+
     n.config = config
 
     build_year_agg_enabled = build_year_agg["enable"] and (
