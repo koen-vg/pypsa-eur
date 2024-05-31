@@ -22,9 +22,9 @@ scenario:
   simpl:
   - ""
   ll:
-  - c1.2
+  - c1.5
   clusters:
-  - 35
+  - 60
   opts:
   - ""
   sector_opts:
@@ -62,7 +62,7 @@ near_opt:
       Link:
         p:
           "H2 Electrolysis": 1
-  slack_initial_fraction: 0.2
+  slack_initial_fraction: 0.75
 
 # Use full set of countries (default)
 # countries: ["AL", "AT", "BA", "BE", "BG", "CH", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR", "HR", "HU", "IE", "IT", "LT", "LU", "LV", "ME", "MK", "NL", "NO", "PL", "PT", "RO", "RS", "SE", "SI", "SK"]
@@ -103,12 +103,11 @@ clustering:
     resolution_sector: "1500seg"
   build_year_aggregation:
     enable: true
-    # Exclude electrolysis since its efficiency changes significantly over time.
-    exclude_carriers:
-      - "H2 Electrolysis"
-      - "solid biomass for industry CC"
-      - "gas for industry CC"
-      - "process emissions CC"
+    exclude_carriers: []
+      # - "H2 Electrolysis"
+      # - "solid biomass for industry CC"
+      # - "gas for industry CC"
+      # - "process emissions CC"
 
 
 co2_budget:
@@ -320,10 +319,12 @@ solving:
 
   solver_options:
     gurobi-default:
-      threads: 2
+      threads: 6
       method: 2 # barrier
       crossover: 0
-      BarConvTol: 1.e-3
+      BarConvTol: 1.e-5
+      FeasibilityTol: 1.e-4
+      OptimalityTol: 1.e-4
       Seed: 123
       AggFill: 0
       PreDual: 0
