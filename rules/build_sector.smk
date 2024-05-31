@@ -289,8 +289,8 @@ rule build_solar_thermal_profiles:
     output:
         solar_thermal=resources("solar_thermal_{scope}_elec_s{simpl}_{clusters}.nc"),
     resources:
-        mem_mb=20000,
-    threads: 16
+        mem_mb=16000,
+    threads: 10
     log:
         logs("build_solar_thermal_profiles_{scope}_s{simpl}_{clusters}.log"),
     benchmark:
@@ -969,7 +969,7 @@ rule time_aggregation:
         ),
     threads: 1
     resources:
-        mem_mb=2000,
+        mem_mb=5000,
     log:
         logs(
             "time_aggregation_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{sector_opts}.log"
@@ -978,6 +978,8 @@ rule time_aggregation:
         benchmarks(
             "time_aggregation_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{sector_opts}"
         )
+    group:
+        "build_sector"
     conda:
         "../envs/environment.yaml"
     script:
@@ -1117,7 +1119,7 @@ rule prepare_sector_network:
         + "prenetworks/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
     threads: 1
     resources:
-        mem_mb=2000,
+        mem_mb=5000,
     log:
         RESULTS
         + "logs/prepare_sector_network_elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.log",

@@ -16,8 +16,6 @@ localrules:
     retrieve_databundle,
     retrieve_cutout,
     retrieve_cost_data,
-    retrieve_natura_raster,
-    retrieve_sector_databundle,
     retrieve_eurostat_data,
     retrieve_gas_infrastructure_data,
     retrieve_electricity_demand,
