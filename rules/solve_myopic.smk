@@ -120,6 +120,7 @@ rule solve_sector_network_myopic:
         planning_horizons=config_provider("scenario", "planning_horizons"),
         sector=config_provider("sector"),
         custom_extra_functionality=input_custom_extra_functionality,
+        compression=config_provider("compression"),
     input:
         network=RESULTS
         + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_{planning_horizons}.nc",
@@ -165,6 +166,7 @@ rule near_opt_myopic:
         planning_horizons=config_provider("scenario", "planning_horizons"),
         sector=config_provider("sector"),
         build_year_agg=config_provider("clustering", "build_year_aggregation"),
+        compression=config_provider("compression"),
         # Not supported yet:
         # custom_extra_functionality=input_custom_extra_functionality,
     input:

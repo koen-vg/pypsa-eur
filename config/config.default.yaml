@@ -855,6 +855,14 @@ solving:
   runtime: 6h #runtime in humanfriendly style https://humanfriendly.readthedocs.io/en/latest/
 
 
+compression:
+  enable: false
+  options:
+    zlib: true
+    complevel: 1
+    least_significant_digit: 3
+
+
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#plotting
 plotting:
   map:

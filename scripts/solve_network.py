@@ -1353,7 +1353,12 @@ if __name__ == "__main__":
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
 
     n.meta = dict(snakemake.config, **dict(wildcards=dict(snakemake.wildcards)))
-    n.export_to_netcdf(snakemake.output.network)
+    compression = (
+        snakemake.params.compression["options"]
+        if snakemake.params.compression["enable"]
+        else None
+    )
+    n.export_to_netcdf(snakemake.output.network, compression=compression)
 
     with open(snakemake.output.config, "w") as file:
         yaml.dump(

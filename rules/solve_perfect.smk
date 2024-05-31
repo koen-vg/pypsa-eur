@@ -100,6 +100,7 @@ rule solve_sector_network_perfect:
         sector=config_provider("sector"),
         planning_horizons=config_provider("scenario", "planning_horizons"),
         custom_extra_functionality=input_custom_extra_functionality,
+        compression=config_provider("compression"),
     input:
         network=RESULTS
         + "prenetworks-brownfield/elec_s{simpl}_{clusters}_l{ll}_{opts}_{sector_opts}_brownfield_all_years.nc",

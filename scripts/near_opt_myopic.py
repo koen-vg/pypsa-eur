@@ -348,4 +348,9 @@ if __name__ == "__main__":
 
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
 
-    n.export_to_netcdf(snakemake.output[0])
+    compression = (
+        snakemake.params.compression["options"]
+        if snakemake.params.compression["enable"]
+        else None
+    )
+    n.export_to_netcdf(snakemake.output[0], compression=compression)

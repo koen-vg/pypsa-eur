@@ -10,6 +10,7 @@ rule solve_network:
         planning_horizons=config_provider("scenario", "planning_horizons"),
         sector=config_provider("sector", default={}),
         custom_extra_functionality=input_custom_extra_functionality,
+        compression=config_provider("compression"),
     input:
         network=resources("networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"),
     output:
