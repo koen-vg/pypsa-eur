@@ -972,9 +972,13 @@ strategies = dict(
     e_nom_extendable=lambda x: x.any(),
     # length_original sometimes contains NaN values
     length_original="mean",
-    # The following two should really be the same, but
-    # equality is difficult with floats.
+    # The following two should really be the same, but equality is
+    # difficult with floats. (Saving with compression, etc.)
     marginal_cost="mean",
+    standing_loss="mean",
+    length="mean",
+    p_max_pu="mean",
+    p_min_pu="mean",
     # Build year is set to 0; to be reset when disaggregating
     build_year=lambda x: 0 if len(x) > 1 else x.squeeze(),
     # "weight" isn't meaningful at this stage; set to 1.
@@ -982,8 +986,6 @@ strategies = dict(
     # Apparently "control" doesn't really matter; follow
     # pypsa.clustering.spatial by setting to ""
     control=lambda x: "",
-    # p_max_pu should be the same, but sometimes not? Need to look into that
-    p_max_pu="mean",
     # The remaining attributes are outputs, and allow the aggregation of solved networks.
     p_nom_opt="sum",
     e_nom_opt="sum",
