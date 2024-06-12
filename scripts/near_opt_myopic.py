@@ -1,19 +1,23 @@
 import itertools
 import logging
+import math
 import os
 
 import numpy as np
 import pandas as pd
 import pypsa
-from linopy import LinearExpression, QuadraticExpression, merge
-from pypsa.descriptors import nominal_attrs
-
 from _benchmark import memory_logger
 from _helpers import (
     configure_logging,
     set_scenario_config,
     update_config_from_wildcards,
 )
+from linopy import LinearExpression, QuadraticExpression, merge
+from prepare_sector_network import (
+    adjust_transport_temporal_agg,
+    set_temporal_aggregation,
+)
+from pypsa.descriptors import nominal_attrs
 from solve_network import (
     aggregate_build_years,
     disaggregate_build_years,
@@ -92,7 +96,21 @@ def optimize_mga_fixed_bound(
     if not isinstance(objective, (LinearExpression, QuadraticExpression)):
         objective = objective.expression
 
-    m.add_constraints(objective + fixed_cost <= obj_bound, name="budget")
+    name = "total_system_cost"
+    # Add globalconstraint object so dual variable can be registered
+    n.add(
+        "GlobalConstraint",
+        name=name,
+        type="budget",
+        carrier_attribute="",
+        sense="<=",
+        constant=obj_bound,
+    )
+
+    # Add constraint to model
+    m.add_constraints(
+        objective + fixed_cost <= obj_bound, name=f"GlobalConstraint-{name}"
+    )
 
     # parse optimization sense
     if (
@@ -150,21 +168,12 @@ def optimize_mga_fixed_bound(
     return status, condition
 
 
-def near_opt(
-    n,
-    config,
-    solving,
-    build_year_agg,
-    planning_horizon,
-    near_opt_config,
-    sense,
-    obj_base,
-    slack,
-    **kwargs,
-):
+def prepare_solver_options(solving):
     # The following solver setup follows that of `solve_network` in `solve_network.py`:
     set_of_options = solving["solver"]["options"]
     cf_solving = solving["options"]
+
+    kwargs = {}
 
     kwargs["solver_options"] = (
         solving["solver_options"][set_of_options] if set_of_options else {}
@@ -190,6 +199,22 @@ def near_opt(
             # Resolve env var as path
             model_kwargs["solver_dir"] = os.path.expandvars(model_kwargs["solver_dir"])
             logger.info(f"Set solver_dir to {model_kwargs['solver_dir']}")
+
+    return kwargs, model_kwargs
+
+
+def near_opt(
+    n,
+    config,
+    solving,
+    build_year_agg,
+    planning_horizon,
+    near_opt_config,
+    sense,
+    obj_base,
+    slack,
+):
+    kwargs, model_kwargs = prepare_solver_options(solving)
 
     n.config = config
 
@@ -236,8 +261,8 @@ def near_opt(
         n.meta["near_opt_status"] = "success"
 
         if build_year_agg_enabled:
-           del n.model
-           disaggregate_build_years(n, indices, planning_horizon)
+            del n.model
+            disaggregate_build_years(n, indices, planning_horizon)
 
         return n
     elif "infeasible" in condition:
@@ -266,6 +291,159 @@ def near_opt(
     raise RuntimeError(
         f"Solve with condition status {status} and condition {condition}"
     )
+
+
+def disable_near_opt_components(n, near_opt_config):
+    for _, components in near_opt_config["weights"].items():
+        for component, variables in components.items():
+            for var, carriers in variables.items():
+                for carrier in carriers:
+                    # Set '{var}_nom_extendable' to False for carrier
+                    n.df(component).loc[
+                        n.df(component).carrier == carrier, f"{var}_nom_extendable"
+                    ] = False
+
+
+def near_opt_try_zero_low_res(
+    n,
+    config,
+    build_year_agg,
+    planning_horizon,
+    near_opt_config,
+    kwargs,
+    obj_base,
+    slack,
+):
+    # First, check on a highly aggregated version of the network if a
+    # zero objective can be achieved; use 10 time segments.
+    N = len(n.snapshot_weightings)
+    NEW_RES = 20
+    if N <= NEW_RES:
+        # If the model is already very low resolution, just answer yes
+        # to the heuristic question.
+        return True
+    else:
+        # Cut the snapshots into a few segments
+        interval = math.ceil(N / NEW_RES)
+
+        # Create bins for the index
+        bins = pd.cut(
+            range(N),
+            bins=np.arange(0, N + interval, interval),
+            right=False,
+            labels=False,
+        )
+
+        # Group by bins and sum the values
+        new_sn = n.snapshot_weightings.groupby(bins).sum()
+        new_sn.index = n.snapshot_weightings.index[::interval]
+
+        # Create a new network with the aggregated snapshots
+        m = set_temporal_aggregation(n, f"{NEW_RES}seg", new_sn)
+
+        # Relax land transport profiles since these seem to lead to infeasibilities.
+        # This is fine for the heuristic.
+        land_transport_carriers = [
+            "land transport oil",
+            "land transport fuel cell",
+            "land transport EV",
+        ]
+        m.links_t.p_min_pu.loc[:, m.links.carrier.isin(land_transport_carriers)] = 0
+        m.links_t.p_max_pu.loc[:, m.links.carrier.isin(land_transport_carriers)] = 1
+
+    m.config = config
+
+    # Now, remove all components listed in the near-opt config
+    disable_near_opt_components(m, near_opt_config)
+
+    build_year_agg_enabled = build_year_agg["enable"] and (
+        config["foresight"] == "myopic"
+    )
+    if build_year_agg_enabled:
+        aggregate_build_years(m, exclude_carriers=build_year_agg["exclude_carriers"])
+
+    # Solve to optimality
+    status, condition = m.optimize(**kwargs)
+
+    # Check that the total system cost is within the bounds
+    total_system_cost = m.statistics.capex().sum() + m.statistics.opex().sum()
+    if (status == "ok") and (total_system_cost <= obj_base * (1 + slack)):
+        logger.info("Zero objective achieved with low resolution network")
+        return True
+
+    return False
+
+
+def near_opt_try_zero(
+    n,
+    config,
+    solving,
+    build_year_agg,
+    planning_horizon,
+    near_opt_config,
+    obj_base,
+    slack,
+):
+    """
+    Try a fast path for near-optimal computation if the objective is zero.
+    """
+    kwargs, model_kwargs = prepare_solver_options(solving)
+    del model_kwargs["transmission_losses"]
+    del model_kwargs["linearized_unit_commitment"]
+    kwargs["model_kwargs"] = model_kwargs
+
+    # First, check on a highly aggregated version of the network if a
+    # zero objective can be achieved; use 10 time segments.
+    if near_opt_try_zero_low_res(
+        n,
+        config,
+        build_year_agg,
+        planning_horizon,
+        near_opt_config,
+        kwargs,
+        obj_base,
+        slack,
+    ):
+        # At this point, we can try to solve the network to optimality
+        # without the near-opt components just like at low resolution;
+        # this time without temporal aggregation.
+        m = n.copy()
+
+        m.config = config
+
+        build_year_agg_enabled = build_year_agg["enable"] and (
+            config["foresight"] == "myopic"
+        )
+        if build_year_agg_enabled:
+            indices = aggregate_build_years(
+                m, exclude_carriers=build_year_agg["exclude_carriers"]
+            )
+
+        # Now, remove all components listed in the near-opt config
+        disable_near_opt_components(m, near_opt_config)
+
+        # Solve to optimality
+        status, condition = m.optimize(**kwargs)
+
+        # Check that the total system cost is within the bounds
+        total_system_cost = m.statistics.capex().sum() + m.statistics.opex().sum()
+        if (status == "ok") and (total_system_cost <= obj_base * (1 + slack)):
+            # At this point, we have a network that is near-optimal
+            # and good enough for our purposes. Don't forget to
+            # disaggregate.
+            logger.info(
+                "Zero objective achieved by turning off components and solving to optimality"
+            )
+
+            if build_year_agg_enabled:
+                del m.model
+                disaggregate_build_years(m, indices, planning_horizon)
+
+            return m, True
+    logger.info(
+        "It looks like the objective for near-opt minimisation is strictly positive."
+    )
+    return None, False
 
 
 if __name__ == "__main__":
@@ -312,8 +490,7 @@ if __name__ == "__main__":
     n_opt = pypsa.Network(snakemake.input.network_opt)
     if snakemake.params.build_year_agg["enable"]:
         aggregate_build_years(
-            n_opt,
-            exclude_carriers=snakemake.params.build_year_agg["exclude_carriers"]
+            n_opt, exclude_carriers=snakemake.params.build_year_agg["exclude_carriers"]
         )
     obj_base = n_opt.statistics.capex().sum() + n_opt.statistics.opex().sum()
     del n_opt
@@ -339,17 +516,32 @@ if __name__ == "__main__":
     with memory_logger(
         filename=getattr(snakemake.log, "memory", None), interval=30.0
     ) as mem:
-        n = near_opt(
-            n,
-            snakemake.config,
-            snakemake.params.solving,
-            snakemake.params.build_year_agg,
-            current_horizon,
-            snakemake.params.near_opt,
-            snakemake.wildcards.sense,
-            obj_base,
-            slack,
-        )
+        # Often, we can get a zero objective, and try a fast path for this.
+        fast_path_success = False
+        if snakemake.wildcards.sense == "min":
+            m, fast_path_success = near_opt_try_zero(
+                n,
+                snakemake.config,
+                snakemake.params.solving,
+                snakemake.params.build_year_agg,
+                current_horizon,
+                snakemake.params.near_opt,
+                obj_base,
+                slack,
+            )
+
+        if not fast_path_success:
+            m = near_opt(
+                n,
+                snakemake.config,
+                snakemake.params.solving,
+                snakemake.params.build_year_agg,
+                current_horizon,
+                snakemake.params.near_opt,
+                snakemake.wildcards.sense,
+                obj_base,
+                slack,
+            )
 
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
 
@@ -358,4 +550,4 @@ if __name__ == "__main__":
         if snakemake.params.compression["enable"]
         else None
     )
-    n.export_to_netcdf(snakemake.output[0], compression=compression)
+    m.export_to_netcdf(snakemake.output[0], compression=compression)

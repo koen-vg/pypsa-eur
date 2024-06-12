@@ -3690,9 +3690,10 @@ def set_temporal_aggregation(n, resolution, snapshot_weightings):
         return n
     else:
         # Otherwise, use the provided snapshots
-        snapshot_weightings = pd.read_csv(
-            snapshot_weightings, index_col=0, parse_dates=True
-        )
+        if isinstance(snapshot_weightings, str):
+            snapshot_weightings = pd.read_csv(
+                snapshot_weightings, index_col=0, parse_dates=True
+            )
 
         # Define a series used for aggregation, mapping each hour in
         # n.snapshots to the closest previous timestep in
@@ -3776,7 +3777,7 @@ def lossy_bidirectional_links(n, carrier, efficiencies={}):
         )
 
 
-def adjust_transport_temporal_agg(n):
+def adjust_transport_temporal_agg(n, options, investment_year):
     engine_types = {
         "fuel_cell": "land transport fuel cell",
         "electric": "land transport EV",
@@ -3906,7 +3907,7 @@ if __name__ == "__main__":
         n, snakemake.params.time_resolution, snakemake.input.snapshot_weightings
     )
 
-    adjust_transport_temporal_agg(n)
+    adjust_transport_temporal_agg(n, options, investment_year)
 
     co2_budget = snakemake.params.co2_budget
     if isinstance(co2_budget, str) and co2_budget.startswith("cb"):
