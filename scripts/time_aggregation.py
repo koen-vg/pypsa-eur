@@ -48,6 +48,7 @@ import pandas as pd
 import pypsa
 import tsam.timeseriesaggregation as tsam
 import xarray as xr
+
 from _helpers import (
     configure_logging,
     set_scenario_config,
@@ -144,6 +145,51 @@ if __name__ == "__main__":
         snapshot_weightings = n.snapshot_weightings.loc[n.snapshots[offsets]].mul(
             weightings, axis=0
         )
+
+        logger.info(
+            f"Distribution of snapshot durations:\n{snapshot_weightings.objective.value_counts()}"
+        )
+
+        snapshot_weightings.to_csv(snakemake.output.snapshot_weightings)
+
+    # Importance sampling
+    elif isinstance(resolution, str) and (resolution.lower().endswith("iseg")):
+        segments = int(resolution[:-4])
+        logger.info(f"Use importance sampling with {segments} segments")
+
+        # Load the network whose marginal price will determine how to sample
+        n_base = pypsa.Network(snakemake.input.importance_sampling_base)
+
+        # Generate a time series of total electricity cost for each snapshot
+        costs = (n_base.buses_t.marginal_price * n_base.loads_t.p_set).sum(axis=1)
+
+        # Normalise so that the sum equals the number of segments
+        costs = costs / costs.sum() * segments
+
+        # Build up the set of segments one by one from start to
+        # finish, trying to keep the number of segments in any
+        # interval as close as possible to the target.
+        snapshots = [n.snapshots[0]]
+        i = 0
+        while len(snapshots) < segments:
+            i += 1
+            while costs.loc[: n.snapshots[i]].sum() < len(snapshots):
+                i += 1
+            snapshots.append(n.snapshots[i])
+
+        # Compute the weightings dataframe by grouping by the
+        # snapshots list; use it to cut intervals
+        aggregation_map = (
+            pd.Series(
+                pd.DatetimeIndex(snapshots).get_indexer(n.snapshots), index=n.snapshots
+            )
+            .replace(-1, np.nan)
+            .ffill()
+            .astype(int)
+            .map(lambda i: snapshots[i])
+        )
+
+        snapshot_weightings = n.snapshot_weightings.groupby(aggregation_map).sum()
 
         logger.info(
             f"Distribution of snapshot durations:\n{snapshot_weightings.objective.value_counts()}"

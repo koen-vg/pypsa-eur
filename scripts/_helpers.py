@@ -634,7 +634,7 @@ def update_config_from_wildcards(config, w, inplace=True):
         if "SAFE" in opts:
             config["solving"]["constraints"]["SAFE"] = True
 
-        if nhours := get_opt(opts, r"^\d+(h|sn|seg)$"):
+        if nhours := get_opt(opts, r"^\d+(h|sn|seg|iseg)$"):
             config["clustering"]["temporal"]["resolution_sector"] = nhours
 
         if "decentral" in opts:

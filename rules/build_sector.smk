@@ -860,6 +860,25 @@ rule build_existing_heating_distribution:
         "../scripts/build_existing_heating_distribution.py"
 
 
+def importance_sampling_base(wildcards):
+    sector_resolution = config_provider("clustering", "temporal", "resolution_sector")(
+        wildcards
+    )
+    if isinstance(sector_resolution, str) and sector_resolution.lower().endswith(
+        "iseg"
+    ):
+        return (
+            RESULTS
+            + "postnetworks/"
+            + config_provider("clustering", "temporal", "importance_sampling_base")(
+                wildcards
+            )
+            + ".nc"
+        )
+    else:
+        return []
+
+
 rule time_aggregation:
     params:
         time_resolution=config_provider("clustering", "temporal", "resolution_sector"),
@@ -867,6 +886,7 @@ rule time_aggregation:
         solver_name=config_provider("solving", "solver", "name"),
     input:
         network=resources("networks/elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.nc"),
+        importance_sampling_base=importance_sampling_base,
         hourly_heat_demand_total=lambda w: (
             resources("hourly_heat_demand_total_elec_s{simpl}_{clusters}.nc")
             if config_provider("sector", "heating")(w)
@@ -879,15 +899,19 @@ rule time_aggregation:
         ),
     output:
         snapshot_weightings=resources(
-            "snapshot_weightings_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.csv"
+            "snapshot_weightings_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{sector_opts}.csv"
         ),
     threads: 1
     resources:
         mem_mb=5000,
     log:
-        logs("time_aggregation_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.log"),
+        logs(
+            "time_aggregation_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{sector_opts}.log"
+        ),
     benchmark:
-        benchmarks("time_aggregation_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}")
+        benchmarks(
+            "time_aggregation_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{sector_opts}"
+        )
     conda:
         "../envs/environment.yaml"
     script:
@@ -954,7 +978,7 @@ rule prepare_sector_network:
         **rules.cluster_gas_network.output,
         **rules.build_gas_input_locations.output,
         snapshot_weightings=resources(
-            "snapshot_weightings_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}.csv"
+            "snapshot_weightings_elec_s{simpl}_{clusters}_ec_l{ll}_{opts}_{sector_opts}.csv"
         ),
         retro_cost=lambda w: (
             resources("retro_cost_elec_s{simpl}_{clusters}.csv")
