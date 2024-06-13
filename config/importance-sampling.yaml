@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: : 2017-2024 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+tutorial: false
+
+run:
+  name: "importance-sampling"
+  disable_progressbar: true
+  shared_cutouts: true
+
+
+scenario:
+  ll:
+  - v1.5
+  clusters:
+  - 5
+  sector_opts:
+  - '50i'
+  - '100i'
+  - '200i'
+  - '400i'
+  - '800i'
+  - '1600i'
+  - '3200i'
+  - '50seg'
+  - '100seg'
+  - '200seg'
+  - '400seg'
+  - '800seg'
+  - '1600seg'
+  - '3200seg'
+  - ''
+  planning_horizons:
+  - 2030
+
+countries: ['DE']
+
+clustering:
+  temporal:
+    importance_sampling_base: "elec_s_2_lv1.5__2h_2030"
+
+atlite:
+  cutouts:
+    base:
+      module: era5
+
+solving:
+  solver:
+    name: gurobi
+    options: gurobi-default
+
+  gurobi-default:
+    threads: 2
