@@ -44,6 +44,7 @@ from _helpers import (
     set_scenario_config,
     update_config_from_wildcards,
 )
+from prepare_sector_network import get
 from pypsa.clustering.spatial import align_strategies, flatten_multiindex
 from pypsa.descriptors import Dict, get_activity_mask
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
@@ -202,15 +203,18 @@ def _add_land_use_constraint_m(n, planning_horizons, current_horizon, config):
     n.generators.p_nom_max.clip(lower=0, inplace=True)
 
 
-def add_co2_sequestration_limit(n, limit=200):
+def add_co2_sequestration_limit(n, limit_dict, planning_horizon):
     """
     Add a global constraint on the amount of Mt CO2 that can be sequestered.
     """
 
     if not n.investment_periods.empty:
         periods = n.investment_periods
-        names = pd.Index([f"co2_sequestration_limit-{period}" for period in periods])
+        limit = pd.Series({f"co2_sequestration_limit-{period}":
+                           limit_dict.get(period, 200) for period in periods})
+        names = limit.index
     else:
+        limit = get(limit_dict, int(planning_horizon))
         periods = [np.nan]
         names = pd.Index(["co2_sequestration_limit"])
 
@@ -415,8 +419,8 @@ def prepare_network(
             n = add_max_growth(n, sector["limit_max_growth"])
 
     if n.stores.carrier.eq("co2 sequestered").any():
-        limit = sector.get("co2_sequestration_potential", 200)
-        add_co2_sequestration_limit(n, limit=limit)
+        limit_dict = sector["co2_sequestration_potential"]
+        add_co2_sequestration_limit(n, limit_dict=limit_dict, planning_horizon=current_horizon)
 
     return n
 
