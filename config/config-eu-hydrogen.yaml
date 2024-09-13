@@ -230,7 +230,15 @@ sector:
   # No regional oil, methanol demand
   regional_methanol_demand: false
   regional_oil_demand: false
-  # Assume 20 EUR / tCO2 sequestered. NB: might need to update this.
+  # Baseline pathway for yearly CO2 sequestration potential
+  co2_sequestration_potential:
+    2025: 0
+    2030: 50
+    2035: 150
+    2040: 350
+    2045: 400
+    2050: 550
+  # Assume 20 EUR / tCO2 sequestered.
   co2_sequestration_cost: 20
   # Don't resolve CO2 spatially
   co2_spatial: false
@@ -247,9 +255,12 @@ sector:
   gas_network: true
   # Don't allow retrofitting
   H2_retrofit: false
-  # Don't spatially resolve biomass
-  biomass_spatial: false
-  biomass_transport: false
+  # Spatially resolved biomass is necessary for biosng (biomass to gas)
+  biomass_spatial: true
+  biomass_transport: true
+  # However, allow biomass to liquid/gas fuel?
+  biomass_to_liquid: true
+  biosng: true
   # Don't model efficiency losses, and don't model gas & elec distribution grids
   transmission_efficiency_enabled: false
   electricity_distribution_grid: false

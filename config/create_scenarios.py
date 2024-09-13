@@ -42,6 +42,8 @@ if filename_stripped == "scenarios.yaml":
                 cutout: europe-era5_{year}
         sector:
             heat_demand_cutout: europe-era5_{year}
+        biomass:
+            scenario: {biomass_scenario}
     """
 
     scenarios = {
@@ -52,8 +54,19 @@ if filename_stripped == "scenarios.yaml":
             # "2013": {
             #     "year": "2013",
             # },
-            "2020": {
-                "year": "2020",
+            # "2020": {
+            #     "year": "2020",
+            # },
+        },
+        "B": {
+            "a": {
+                "biomass_scenario": "ENS_Low",
+            },
+            "b": {
+                "biomass_scenario": "ENS_Med",
+            },
+            "c": {
+                "biomass_scenario": "ENS_High",
             },
         },
     }
@@ -75,5 +88,5 @@ config_combinations = [
 with open(filename, "w") as f:
     for c, config in zip(combinations, config_combinations):
         # Construct name string from c
-        name = "_".join([f"{s}-{l}" for s, l in c])
+        name = "_".join([f"{s}{l}" for s, l in c])
         f.write(template.format(scenario_name=name, **config))

@@ -36,6 +36,7 @@ CC_tech_carriers = [
     "solid biomass for industry CC",
     "gas for industry CC",
     "process emissions CC",
+    "DAC",
 ]
 
 
@@ -46,7 +47,12 @@ map_opts_to_config = {
         for carrier in CC_tech_carriers
     ],
     "co2_sequestration_cost": [["sector", "co2_sequestration_cost"]],
-    "co2_sequestration_potential": [["sector", "co2_sequestration_potential"]],
+    "co2_2025": [["sector", "co2_sequestration_potential", 2025]],
+    "co2_2030": [["sector", "co2_sequestration_potential", 2030]],
+    "co2_2035": [["sector", "co2_sequestration_potential", 2035]],
+    "co2_2040": [["sector", "co2_sequestration_potential", 2040]],
+    "co2_2045": [["sector", "co2_sequestration_potential", 2045]],
+    "co2_2050": [["sector", "co2_sequestration_potential", 2050]],
     "land_use": [
         ["adjustments", "sector", "p_nom_max", "onwind"],
         ["adjustments", "sector", "p_nom_max", "solar"],
@@ -62,6 +68,7 @@ scenarios = {
     },
     # CCS and adjacent technologies
     "C": {
+        # Optimistic scenario
         "a": {
             # Bring the cost of SMR CC close to the cost of SMR
             # without CC (which is 86.2% the cost of SMR CC by
@@ -69,13 +76,36 @@ scenarios = {
             "CC_cost": 0.9,
             # An optimistic cost of co2 sequestration (assumption) [€/tCO2]
             "co2_sequestration_cost": 15,
-            # Source?
-            "co2_sequestration_potential": 2000,
+            # Optimistic pathway for CO2 sequestration potential [MtCO2/a]
+            "co2_2025": 0,
+            "co2_2030": 100,
+            "co2_2035": 300,
+            "co2_2040": 500,
+            "co2_2045": 800,
+            "co2_2050": 1100,
         },
+        # Middle scenario
         "b": {
+            "CC_cost": 1.0,
+            "co2_sequestration_cost": 20,  # [€/tCO2]
+            "co2_2025": 0,
+            "co2_2030": 50,
+            "co2_2035": 150,
+            "co2_2040": 250,
+            "co2_2045": 400,
+            "co2_2050": 550,
+        },
+        # Pessimistic scenario
+        "c": {
             "CC_cost": 1.5,
             "co2_sequestration_cost": 30,  # [€/tCO2]
-            "co2_sequestration_potential": 400,
+            # Pessimistic pathway for CO2 sequestration potential [MtCO2/a]
+            "co2_2025": 0,
+            "co2_2030": 25,
+            "co2_2035": 75,
+            "co2_2040": 125,
+            "co2_2045": 200,
+            "co2_2050": 275,
         },
     },
     # Land use
