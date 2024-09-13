@@ -81,6 +81,16 @@ def add_brownfield(n, n_p, year):
         c.df[f"{attr}_nom"] = c.df[f"{attr}_nom_opt"]
         c.df[f"{attr}_nom_extendable"] = False
 
+        # Allow the model to phase out industrial process heating capacities
+        process_heat_carriers = c.df.carrier[c.df.index.str.contains("lowT industry|mediumT industry|highT industry")].unique()
+        process_heat_i = c.df.index[c.df.carrier.isin(process_heat_carriers)]
+        c.df.loc[process_heat_i, f"{attr}_nom_extendable"] = True
+        # Set attr_nom_max to attr_nom to allow only phase out; attr_nom_min is set to 0
+        c.df.loc[process_heat_i, f"{attr}_nom_max"] = c.df.loc[process_heat_i, f"{attr}_nom"]
+        c.df.loc[process_heat_i, f"{attr}_nom_min"] = 0
+        # Capital cost to phase out is set to 0 so the model does not gain from phasing out
+        c.df.loc[process_heat_i, "capital_cost"] = 0
+
         n.import_components_from_dataframe(c.df, c.name)
 
         # copy time-dependent

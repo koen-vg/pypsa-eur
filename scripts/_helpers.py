@@ -37,6 +37,11 @@ CC_tech_carriers = [
     "gas for industry CC",
     "process emissions CC",
     "DAC",
+    "lowT industry solid biomass CC"
+    "lowT industry methane CC"
+    "solid biomass for mediumT industry CC"
+    "gas for mediumT industry CC"
+    "gas for highT industry CC"
 ]
 
 

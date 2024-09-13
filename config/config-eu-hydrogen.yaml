@@ -269,6 +269,8 @@ sector:
   conventional_generation:
     OCGT: "gas"
     nuclear: "uranium"
+  industry_t:  # heat supply industry
+    endogen: true
   # No growth limits
   limit_max_growth:
     enable: false
