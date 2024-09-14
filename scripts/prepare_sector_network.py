@@ -3213,7 +3213,7 @@ def add_low_t_industry(n, nodes, industrial_demand, costs, must_run):
             bus0=spatial.biomass.nodes,
             bus1=nodes + " lowT industry",
             bus2="co2 atmosphere",
-            bus3=spatial.co2,
+            bus3=spatial.co2.nodes,
             carrier="lowT industry solid biomass CC",
             p_nom_extendable=True,
             p_min_pu=must_run,
@@ -3226,8 +3226,7 @@ def add_low_t_industry(n, nodes, industrial_demand, costs, must_run):
             efficiency2=-costs.at["solid biomass", "CO2 intensity"]
             * costs.at["biomass CHP capture", "capture_rate"],
             efficiency3=costs.at["solid biomass", "CO2 intensity"]
-            * (1 - costs.at["biomass CHP capture", "capture_rate"])
-            - costs.at["solid biomass", "CO2 intensity"],
+            * costs.at["biomass CHP capture", "capture_rate"],
             lifetime=costs.at["solid biomass boiler steam CC", "lifetime"],
         )
 
