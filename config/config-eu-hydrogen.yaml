@@ -68,42 +68,57 @@ near_opt:
 # countries: ["AL", "AT", "BA", "BE", "BG", "CH", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR", "HR", "HU", "IE", "IT", "LT", "LU", "LV", "ME", "MK", "NL", "NO", "PL", "PT", "RO", "RS", "SE", "SI", "SK"]
 
 
-# EU-27, exclude Cyprus, Luxembourg, Malta (too small), plus Norway, UK, Switzerland
+# EU-27, excluding Cyprus, Malta, including Norway, UK, Switzerland
 countries:
+- "AT"
 - "BE"
 - "BG"
+- "CH"
 - "CZ"
-- "DK"
 - "DE"
+- "DK"
 - "EE"
-- "IE"
-- "GR"
 - "ES"
+- "FI"
 - "FR"
+- "GB"
+- "GR"
 - "HR"
-- "IT"
-- "LV"
-- "LT"
 - "HU"
+- "IE"
+- "IT"
+- "LT"
+- "LU"
+- "LV"
 - "NL"
-- "AT"
+- "NO"
 - "PL"
 - "PT"
 - "RO"
+- "SE"
 - "SI"
 - "SK"
-- "FI"
-- "SE"
-- "NO"
-- "GB"
-- "CH"
 
 clustering:
   temporal:
     resolution_sector: "1500seg"
   build_year_aggregation:
     enable: true
-    exclude_carriers: []
+    exclude_carriers:
+      - "lowT industry solid biomass"
+      - "lowT industry solid biomass CC"
+      - "lowT industry methane"
+      - "lowT industry methane CC"
+      - "lowT industry heat pump"
+      - "lowT industry electricity"
+      - "solid biomass for mediumT industry"
+      - "solid biomass for mediumT industry CC"
+      - "gas for mediumT industry"
+      - "gas for mediumT industry CC"
+      - "hydrogen for mediumT industry"
+      - "gas for highT industry"
+      - "gas for highT industry CC"
+      - "hydrogen for highT industry"
       # - "H2 Electrolysis"
       # - "solid biomass for industry CC"
       # - "gas for industry CC"
