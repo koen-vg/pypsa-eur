@@ -35,7 +35,7 @@ Inputs
 Outputs
 -------
 
-- ``resource/powerplants.csv``: A list of conventional power plants (i.e. neither wind nor solar) with fields for name, fuel type, technology, country, capacity in MW, duration, commissioning year, retrofit year, latitude, longitude, and dam information as documented in the `powerplantmatching README <https://github.com/PyPSA/powerplantmatching/blob/master/README.md>`_; additionally it includes information on the closest substation/bus in ``networks/base.nc``.
+- ``resource/powerplants_s_{clusters}.csv``: A list of conventional power plants (i.e. neither wind nor solar) with fields for name, fuel type, technology, country, capacity in MW, duration, commissioning year, retrofit year, latitude, longitude, and dam information as documented in the `powerplantmatching README <https://github.com/PyPSA/powerplantmatching/blob/master/README.md>`_; additionally it includes information on the closest substation/bus in ``networks/base_s_{clusters}.nc``.
 
     .. image:: img/powerplantmatching.png
         :scale: 30 %
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
     set_scenario_config(snakemake)
 
-    n = pypsa.Network(snakemake.input.base_network)
+    n = pypsa.Network(snakemake.input.network)
     countries = snakemake.params.countries
 
     ppl = (
@@ -206,12 +206,11 @@ if __name__ == "__main__":
 
     # Add "everywhere powerplants" to all bus locations
     ppl = add_everywhere_powerplants(
-        ppl, n.buses.query("substation_lv"), snakemake.params.everywhere_powerplants
+        ppl, n.buses, snakemake.params.everywhere_powerplants
     )
 
-    substations = n.buses.query("substation_lv")
     ppl = ppl.dropna(subset=["lat", "lon"])
-    ppl = map_country_bus(ppl, substations)
+    ppl = map_country_bus(ppl, n.buses)
 
     bus_null_b = ppl["bus"].isnull()
     if bus_null_b.any():
