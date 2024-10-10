@@ -719,6 +719,12 @@ def update_config_from_wildcards(config, w, inplace=True):
             "c": "capital_cost",
             "m": "marginal_cost",
         }
+        component_lookup = {
+            "p": ["Generator", "StorageUnit", "Link"],
+            "e": ["Store"],
+            "c": ["Generator", "StorageUnit", "Link", "Store", "Line"],
+            "m": ["Generator", "StorageUnit", "Link", "Store"],
+        }
         for o in opts:
             flags = ["+e", "+p", "+m", "+c"]
             if all(flag not in o for flag in flags):
@@ -727,8 +733,12 @@ def update_config_from_wildcards(config, w, inplace=True):
             attr = attr_lookup[attr_factor[0]]
             factor = float(attr_factor[1:])
             if not isinstance(config["adjustments"]["sector"], dict):
-                config["adjustments"]["sector"] = dict()
-            update_config(config["adjustments"]["sector"], {attr: {carrier: factor}})
+                config["adjustments"]["sector"] = dict(factor=dict(), absolute=False)
+            for component in component_lookup[attr_factor[0]]:
+                update_config(
+                    config["adjustments"]["sector"]["factor"],
+                    {component: {carrier: {attr: factor}}},
+                )
 
         _, sdr_value = find_opt(opts, "sdr")
         if sdr_value is not None:

@@ -87,6 +87,7 @@ def modify_attribute(n, adjustments, investment_year, modification="factor"):
         for carrier in change_dict[c].keys():
             ind_i = n.df(c)[n.df(c).carrier == carrier].index
             if ind_i.empty:
+                logger.warning(f"No components of type {c} with carrier {carrier} to adjust.")
                 continue
             for parameter in change_dict[c][carrier].keys():
                 if parameter not in n.df(c).columns:
