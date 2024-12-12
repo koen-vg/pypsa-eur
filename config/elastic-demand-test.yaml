@@ -1,0 +1,45 @@
+run:
+  name: "elastic-demand-test"
+  disable_progressbar: true
+  shared_cutouts: true
+
+
+scenario:
+  ll:
+  - v1.5
+  clusters:
+  - 40
+  sector_opts:
+  - ""
+  # Willingness to pay in EUR/kWh of load load
+  - "elastic1"
+  - "elastic2"
+  - "elastic5"
+  - "elastic10"
+  - "elastic20"
+  - "elastic50"
+  - "elastic100"
+  planning_horizons:
+  - 2040
+
+
+clustering:
+  temporal:
+    resolution_sector: "1000seg"
+
+sector:
+  gas_network: true
+  H2_retrofit: true
+
+solving:
+  options:
+    load_shedding:
+      enable: true
+
+  solver:
+    name: gurobi
+    options: gurobi-default
+
+  solver_options:
+    gurobi-default:
+      threads: 6

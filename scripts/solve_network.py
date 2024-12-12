@@ -458,26 +458,45 @@ def prepare_network(
         ):
             df.where(df > solve_opts["clip_p_max_pu"], other=0.0, inplace=True)
 
-    if load_shedding := solve_opts.get("load_shedding"):
-        # intersect between macroeconomic and surveybased willingness to pay
-        # http://journal.frontiersin.org/article/10.3389/fenrg.2015.00055/full
+    load_shedding = solve_opts["load_shedding"]
+    if load_shedding["enable"]:
         # TODO: retrieve color and nice name from config
         n.add("Carrier", "load", color="#dd2e23", nice_name="Load shedding")
         buses_i = n.buses.index
-        if not np.isscalar(load_shedding):
-            # TODO: do not scale via sign attribute (use Eur/MWh instead of Eur/kWh)
-            load_shedding = 1e2  # Eur/kWh
 
-        n.madd(
-            "Generator",
-            buses_i,
-            " load",
-            bus=buses_i,
-            carrier="load",
-            sign=1e-3,  # Adjust sign to measure p and p_nom in kW instead of MW
-            marginal_cost=load_shedding,  # Eur/kWh
-            p_nom=1e9,  # kW
-        )
+        if not load_shedding["elastic"]:
+            # Note: willingness to pay is given in EUR/kWh, not
+            # EUR/MWh; use sign=1e-3 to convert to EUR/MWh
+            n.madd(
+                "Generator",
+                buses_i,
+                " load shedding",
+                bus=buses_i,
+                carrier="load",
+                sign=1e-3,
+                marginal_cost=load_shedding["willingness_to_pay"],
+                p_nom=1e9,  # kW
+            )
+
+        else:
+            # Find average load per bus
+            load_by_bus = n.loads_t.p_set.T.groupby(n.loads.bus).sum().T
+            AC_buses = n.buses[n.buses.carrier.isin(["AC", "low voltage"])].index.intersection(
+                load_by_bus.columns
+            )
+            load_by_bus = load_by_bus.loc[:, AC_buses]
+            load_shedding_i = load_by_bus.columns
+            n.madd(
+                "Generator",
+                load_shedding_i,
+                " load shedding",
+                bus=load_shedding_i,
+                carrier="load",
+                # Here, we convery back to EUR/MWh
+                marginal_cost_quadratic=(1e3 * load_shedding["willingness_to_pay"]) / (2 * load_by_bus),
+                marginal_cost=0,
+                p_nom=load_by_bus.max(),
+            )
 
     if solve_opts.get("curtailment_mode"):
         n.add("Carrier", "curtailment", color="#fedfed", nice_name="Curtailment")

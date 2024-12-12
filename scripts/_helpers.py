@@ -581,6 +581,14 @@ def update_config_from_wildcards(config, w, inplace=True):
             if "ATKc" in opts:
                 config["autarky"]["by_country"] = True
 
+        elastic_enable, willingness_to_pay = find_opt(opts, "elastic")
+        if elastic_enable:
+            load_shedding = config["solving"]["options"]["load_shedding"]
+            load_shedding["enable"] = True
+            load_shedding["elastic"] = True
+            if willing_to_pay is not None:
+                load_shedding["willingness_to_pay"] = willingness_to_pay
+
         attr_lookup = {
             "p": "p_nom_max",
             "e": "e_nom_max",
@@ -705,6 +713,14 @@ def update_config_from_wildcards(config, w, inplace=True):
         _, seq_limit = find_opt(opts, "seq")
         if seq_limit is not None:
             config["sector"]["co2_sequestration_potential"] = seq_limit
+
+        elastic_enable, willingness_to_pay = find_opt(opts, "elastic")
+        if elastic_enable:
+            load_shedding = config["solving"]["options"]["load_shedding"]
+            load_shedding["enable"] = True
+            load_shedding["elastic"] = True
+            if willingness_to_pay is not None:
+                load_shedding["willingness_to_pay"] = willingness_to_pay
 
         # any config option can be represented in wildcard
         for o in opts:

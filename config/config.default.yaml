@@ -867,7 +867,11 @@ solving:
   #tmpdir: "path/to/tmp"
   options:
     clip_p_max_pu: 1.e-2
-    load_shedding: false
+    load_shedding:
+      enable: false
+      # Based on http://journal.frontiersin.org/article/10.3389/fenrg.2015.00055/full
+      willingness_to_pay: 100 # EUR/kWh
+      elastic: false
     curtailment_mode: false
     noisy_costs: true
     skip_iterations: true
