@@ -3,11 +3,11 @@ SPDX-FileCopyrightText: 2024 Koen van Greevenbroek
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-This repository contains the code and data required to reproduce the results of the paper *Can Norway save the European Union's hydrogen ambition for 2030?* by C.S.W. Cheng, K. van Greevenbroek & I. Viole.
+This repository contains the code and data required to reproduce the results of the paper [The competitive edge of Norway's hydrogen by 2030: Socio-environmental considerations](https://doi.org/10.1016/j.ijhydene.2024.08.377) by C.S.W. Cheng, K. van Greevenbroek & I. Viole.
 
 ## Instructions
 
-In order to reproduce the main results, clone this repository and follow the instructions given at https://pypsa-eur.readthedocs.io/en/latest/installation.html (starting at installing the Python dependencies).
+In order to reproduce the main results, clone this repository (including git submodules) and follow the instructions given at https://pypsa-eur.readthedocs.io/en/latest/installation.html (starting at installing the Python dependencies).
 
 Instead of `environment.yaml`, use `hydrogen-exports.yaml`, i.e.
 ```bash 
